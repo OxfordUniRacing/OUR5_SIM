@@ -8,11 +8,11 @@ close all
 %CAR PARAMETERS
 params.M = 320; %kg
 params.M_dist = 0.5; %dist mass over front wheels
-params.gratio = 3; %gear reduction ratio
+params.gratio = 4.5; %gear reduction ratio
 params.lat_mu = 1.3; %lateral tyre coeff. friction
 params.long_mu = 1.3; %longitudinal tyre coeff. friction
 params.tyre_dia = 16; %tyre diameter, inches
-params.voltage = 400; %battery voltage, iterative function to model sag to come
+params.voltage = 270; %battery voltage, iterative function to model sag to come
 params.COG_h = 0.3; %m
 params.wheelbase = 1.525; %m
 
@@ -20,7 +20,7 @@ params.wheelbase = 1.525; %m
 %Motor efficiency is in seperate "motor_efficiecy.m"
 params.efficiency.mechanical = 0.95;
 params.efficiency.inverter = 0.95;
-params.efficiency.battery = 0.95;
+params.efficiency.battery = 0.90;
 
 %CONTROL
 params.control.driver_skill = 0.95; %Driver skill factor (~0.5 to 1), acts as derate

@@ -10,12 +10,10 @@
 % if rpm < 3000, torque = 254Nm
 % if rpm > 3000, torque = 80 * 9549.3 / rpm
 
-
+power_limit = 80
 
 function max_torque = max_torque(rpm)
     %peak
-    power_limit = 80;
-
     if rpm < 3000
         max_torque = 225;
     end
