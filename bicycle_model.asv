@@ -1,0 +1,1462 @@
+% bicycle_model.m
+% Bicycle model of our team's formula student car - see notes for where to
+% use
+% Lewis Blake
+it = 1;
+gearit = 0;
+geartimes = 0;
+gearenergy = 0;
+
+for j = 4
+gearit(it) = j;
+
+event = "endurance";
+% event = "skidpan";
+% event = "sprint";
+% event = "acceleration";
+
+%TRACK SCALING
+
+if event == "endurance"
+
+    
+
+    % curv_scale_val = (1/21) / abs(max(abs(curv))); %min hairpin radius of 21m
+    curv_scale_val = (1/5) / abs(max(abs(curv))); %min hairpin radius of 5m
+
+    curv_scale = curv * curv_scale_val;
+
+
+
+    length_sum = 0;
+
+    for g = 1:48
+        length_sum = length_sum + dels(g);
+
+    end
+
+    % length_scale = 80 / length_sum;
+
+    % length_sum = sqrt((track(712,1)-track(750,1))^2+(track(712,2)-track(750,2))^2);
+    %
+
+
+
+    dist_so_far_abs = sum(dels);
+    % length_scale = 5891 / dist_so_far_abs;
+    length_scale = 1500 / dist_so_far_abs;
+
+    dels_scale = dels * length_scale;
+
+end
+
+if event == "acceleration"
+    curv_scale = curv;
+    dels_scale = dels;
+
+end
+
+if event == "skidpan"
+    curv_scale = curv/(curv(8)*9.125);
+    dels_scale = dels;
+    
+end
+
+
+%INITIALISATION
+
+motor_rad_s = zeros(1,length(curv));
+power_usage_l = zeros(1,length(curv));
+power_usage_r = zeros(1,length(curv));
+power_usage = zeros(1,length(curv));
+energy_usage = zeros(1,length(curv));
+power_limit = zeros(1,length(curv));
+power_regen_l =  zeros(1,length(curv)-1);
+power_regen_r = zeros(1,length(curv)-1);
+power_regen = zeros(1,length(curv)-1);
+energy_regen = zeros(1,length(curv)-1);
+lat_bal_l = zeros(1,length(curv)-1);
+lat_bal_r = zeros(1,length(curv)-1);
+long_bal_r = zeros(1,length(curv)-1);
+long_bal_f = zeros(1,length(curv)-1);
+delta = zeros(1,length(curv)-1);
+omega = zeros(1,length(curv)-1);
+Flat  = zeros(1,length(curv)-1);
+Flat_r = zeros(1,length(curv)-1);
+Flat_f = zeros(1,length(curv)-1);
+wheel_rpm = zeros(1,length(curv)-1);
+motor_rpm = zeros(1,length(curv)-1);
+Fz_r = zeros(1,length(curv)-1);
+Fz_rl = zeros(1,length(curv)-1);
+Fz_rr = zeros(1,length(curv)-1);
+Flat_rl = zeros(1,length(curv)-1);
+Flat_rr = zeros(1,length(curv)-1);
+Fdrive_rl = zeros(1,length(curv)-1);
+max_motor_torque = zeros(1,length(curv)-1);
+max_torque_out = zeros(1,length(curv)-1);
+Trl = zeros(1,length(curv)-1);
+Trl_out = zeros(1,length(curv)-1);
+Fdrive_rr = zeros(1,length(curv)-1);
+Trr = zeros(1,length(curv)-1);
+Trr_out = zeros(1,length(curv)-1);
+Tdrive_l = zeros(1,length(curv)-1);
+Tdrive_r = zeros(1,length(curv)-1);
+Fdrive = zeros(1,length(curv)-1);
+adrive_tyre = zeros(1,length(curv)-1);
+motor_eff_l = zeros(1,length(curv)-1);
+motor_eff_r = zeros(1,length(curv)-1);
+acc = zeros(1,length(curv)-1);
+Fz_f = zeros(1,length(curv)-1);
+Fz_fl = zeros(1,length(curv)-1);
+Fz_fr = zeros(1,length(curv)-1);
+Flat_fl = zeros(1,length(curv)-1);
+Flat_fr = zeros(1,length(curv)-1);
+mu_lat_fl = zeros(1,length(curv)-1);
+mu_lat_fr = zeros(1,length(curv)-1);
+Fbrake_fl_cap = zeros(1,length(curv)-1);
+Fbrake_fr_cap = zeros(1,length(curv)-1);
+Fbrake_f_cap = zeros(1,length(curv)-1);
+Flat_rl = zeros(1,length(curv)-1);
+Flat_rr = zeros(1,length(curv)-1);
+mu_lat_rl = zeros(1,length(curv)-1);
+mu_lat_rr = zeros(1,length(curv)-1);
+Fbrake_rl_cap = zeros(1,length(curv)-1);
+Fbrake_rr_cap = zeros(1,length(curv)-1);
+Fbrake_fr_cap_eff = zeros(1,length(curv)-1);
+Fbrake_fl_cap_eff = zeros(1,length(curv)-1);
+Fbrake_rr_cap_eff = zeros(1,length(curv)-1);
+Fbrake_rl_cap_eff = zeros(1,length(curv)-1);
+Fbrake_r_cap = zeros(1,length(curv)-1);
+Fbrake_r = zeros(1,length(curv)-1);
+Fbrake_f_dash = zeros(1,length(curv)-1);
+Fbrake_f = zeros(1,length(curv)-1);
+Fbrake_r_pad = zeros(1,length(curv)-1);
+Fbrake_r = zeros(1,length(curv)-1);
+Fbrake_r_regen = zeros(1,length(curv)-1);
+Tregen = zeros(1,length(curv)-1);
+Tregen_l = zeros(1,length(curv)-1);
+Tregen_r = zeros(1,length(curv)-1);
+Fbrake = zeros(1,length(curv)-1);
+abrake_tyre = zeros(1,length(curv)-1);
+Tregen_out = zeros(1,length(curv)-1);
+mu_long_fl = zeros(1,length(curv)-1);
+mu_long_fr = zeros(1,length(curv)-1);
+mu_long_rl = zeros(1,length(curv)-1);
+mu_long_rr = zeros(1,length(curv)-1);
+acc_lat = zeros(1,length(curv)-1);
+lat_transfer = zeros(1,length(curv)-1);
+long_transfer = zeros(1,length(curv)-1);
+lat_transfer_f = zeros(1,length(curv)-1);
+lat_transfer_r = zeros(1,length(curv)-1);
+Frolling = zeros(1,length(curv)-1);
+mu_rolling = zeros(1,length(curv)-1);
+v = ones(1,length(curv_scale));
+t = zeros(1,length(curv_scale));
+spun = zeros(1,length(curv_scale));
+Fdrag = zeros(1,length(curv_scale));
+rolled_rl = zeros(1,length(curv_scale));
+rolled_rr = zeros(1,length(curv_scale));
+rolled_fl = zeros(1,length(curv_scale));
+rolled_fr = zeros(1,length(curv_scale));
+spun_rl = zeros(1,length(curv_scale));
+spun_rr = zeros(1,length(curv_scale));
+spun_fl = zeros(1,length(curv_scale));
+spun_fr = zeros(1,length(curv_scale));
+torque_lim = zeros(1,length(curv_scale));
+rpm_lim = zeros(1,length(curv_scale));
+full_acc = zeros(1,length(curv_scale));
+car_spun = zeros(1,length(curv_scale));
+car_roll = zeros(1,length(curv_scale));
+dist_so_far = zeros(1,length(curv_scale));
+
+%CAR PARAMS
+lambda = 1;
+M = 800; %mass of car, kg
+L = 4; %length of car, m
+TW = 2; %track width of car, m
+COG_long = 0.6; %proportional position of COG from front
+COG_lat=0.5; %proportional position of COG from left
+COG_h=0.15; %height of COG above floor, m
+COP = 0.5;
+air_density = 1.239; %kgm^-3
+Lift_A = 4;
+%Lift_A = 2;
+%Drag_A = 0;
+Drag_A = 1.5;
+g = 9.81;
+mu_lat_max = lambda*3;
+mu_long_max = lambda*1.5;
+mu_rolling_coeff = 0.013;
+gratio = j;
+rpm_limit = 12000;
+tyre_dia_in = 28.3; %inches
+tyre_dia = tyre_dia_in*0.0254; %metres
+inverter_eff = 0.95;
+regen = 0;
+brake_bias = 0.5; %corresponds to overall brake bias (link of code to brake pedal)
+regen_pedal_percent = 0.12; %percentage of brake pedal that is pure regen
+Fbrake_max = 10000;
+Fregen_max_rl = 0.5*brake_bias*regen_pedal_percent*Fbrake_max;
+Fregen_max_rr = 0.5*brake_bias*regen_pedal_percent*Fbrake_max;
+
+%MASS TRANSFER
+
+%mass_transfer = 1;
+
+% lat_bal_l = 1;
+% lat_bal_r = 1;
+% 
+% long_bal_r = 1;
+% long_bal_f = 1;
+
+M_r = COG_long*M;
+M_f = (1-COG_long)*M;
+
+% curv = 0.25;
+R = abs(1/curv_scale);
+% v = 8;
+
+l_r = (1-COG_long)*L;
+l_f = COG_long*L;
+
+
+% 
+% beta = atand(l_r/R);
+% 
+% delta = atand(L/R);
+% 
+% omega = (v*tand(delta))/L;
+% 
+% R_dash = R/(cosd(beta));
+% 
+% Flat = M*v_temp^2/R_dash;
+% 
+% Flat_r = (cosd(delta)*l_f*Flat)/(l_r+cosd(delta)*l_f);
+% 
+% Flat_f = Flat - Flat_r;
+
+%ACCELERATING
+
+% wheel_rpm = 60*v / (pi*tyre_dia);
+% motor_rpm = gratio * wheel_rpm;
+% 
+% Fz_r = long_bal_r*M_r*g;
+% 
+% Fz_rl = lat_bal_l*Fz_r/2;
+% Fz_rr = lat_bal_r*Fz_r/2;
+% 
+% Flat_rl = Flat_r*lat_bal_l / 2;
+% Flat_rr = Flat_r*lat_bal_r / 2;
+% 
+% Fdrive_rl = Fz_rl * mu_long_max*sqrt(1-(Flat_rl/(Fz_rl*mu_lat_max)));
+
+%determines if torque demand is above max torque of motor
+
+% max_torque = 140; %Nm
+% Trl = Fdrive_rl*(tyre_dia/2);
+% 
+% if Trl > max_torque
+%     Fdrive_rl = max_torque / (tyre_dia/2);
+% end
+
+%insert function that inputs motor rpm and spits out maximum torque (approx
+%at 140Nm to start with)
+
+
+
+
+
+
+% 
+% 
+% Fdrive_rr = Fz_rr * mu_long_max*sqrt(1-(Flat_rr/(Fz_rr*mu_lat_max)));
+% 
+% Trr = Fdrive_rr*(tyre_dia/2);
+% 
+% if Trr > max_torque
+%     Fdrive_rr = max_torque / (tyre_dia/2);
+% end
+% 
+% Fdrive = Fdrive_rl + Fdrive_rr;
+
+
+% adrive_tyre = Fdrive/M; %include drag/rolling resistance here later
+
+%insert function here that limits car velocity and output power
+
+%insert function here inputting current RPM and drive force (torque) to get
+%motor efficiency
+
+
+
+% 
+% %BRAKING
+% 
+% %front maximum capacity
+% 
+% Fz_f = long_bal_f*M_f*g;
+% 
+% Fz_fl = lat_bal_l*COG_lat*Fz_f;
+% Fz_fr = lat_bal_r*COG_lat*Fz_f;
+% 
+% Flat_fl = Flat_f*lat_bal_l / 2;
+% Flat_fr = Flat_f*lat_bal_r / 2;
+% 
+% mu_lat_fl = Flat_fl/Fz_fl;
+% mu_lat_fr = Flat_fr/Fz_fr;
+% 
+% 
+% 
+% Fbrake_fl_cap = Fz_fl*mu_long_max*sqrt(1-(Flat_fl/(Fz_fl*mu_lat_max)));
+% Fbrake_fr_cap = Fz_fr*mu_long_max*sqrt(1-(Flat_fr/(Fz_fr*mu_lat_max)));
+% 
+% Fbrake_f_cap = Fbrake_fl_cap + Fbrake_fr_cap;
+% 
+% %rear maximum capacity
+% 
+% mu_lat_rl = Flat_rl/Fz_rl;
+% mu_lat_rr = Flat_rr/Fz_rr;
+% 
+% 
+% Fbrake_rl_cap = Fz_r*mu_long_max*sqrt(1-(Flat_r/(Fz_r*mu_lat_max)));
+% Fbrake_rr_cap = Fz_r*mu_long_max*sqrt(1-(Flat_r/(Fz_r*mu_lat_max)));
+% 
+% Fbrake_r_cap = Fbrake_rl_cap + Fbrake_rr_cap;
+% 
+% %selecting wheel that will lock up first
+% 
+% if Fbrake_r_cap < Fbrake_f_cap
+%     Fbrake_r = Fbrake_r_cap;
+%     Fbrake_f = Fbrake_r(1/(brake_bias)-1);
+% end
+% 
+% if Fbrake_r_cap > Fbrake_f_cap
+%     Fbrake_f_dash = Fbrake_f_cap;
+%     Fbrake_r = Fbrake_f_dash*brake_bias/(1-brake_bias);
+%     Fbrake_f = cosd(delta)*Fbrake_f_dash;
+% end
+% 
+% Fbrake = Fbrake_f + Fbrake_r;
+% abrake_tyre = Fbrake/M; %include drag/rolling resistance here later
+
+
+
+%ALGORITHM
+
+
+v(1) = 1;
+
+for k = 2:length(curv_scale)-1
+
+
+
+    full_acc(k) = 1;
+
+    v_temp_test = v(k-1);
+    R = abs(1/curv_scale(k));
+    beta = atand(l_r/R);
+    delta(k) = atand(L/R);
+    omega(k) = (v_temp_test*tand(delta(k)))/L;
+    R_dash = R/(cosd(beta));
+    Flat(k) = M*v_temp_test^2/R_dash;
+    acc_lat(k) = sign(curv_scale(k))*Flat(k)/M;
+    Flat_r(k) = (cosd(delta(k))*l_f*Flat(k))/(l_r+cosd(delta(k))*l_f);
+    Flat_f(k) = Flat(k) - Flat_r(k);
+
+    %balance
+
+
+    lat_transfer_f(k) = ((1-COG_long)*acc_lat(k)*COG_h)/(TW);
+    lat_transfer_r(k) = ((COG_long)*acc_lat(k)*COG_h)/(TW);
+
+    long_transfer(k) = (acc(k-1)*COG_h)/(2*L);
+
+    %lat_bal_l(k) = 1+lat_transfer(k);
+    %lat_bal_r(k) = 1-lat_transfer(k);
+
+    %long_bal_r(k) = 1+long_transfer(k);
+    %long_bal_f(k) = 1-long_transfer(k);
+
+    %Fz_fl_transfer =
+
+
+
+
+
+    %ACCELERATING
+
+    wheel_rpm(k) = 60*v_temp_test / (pi*tyre_dia);
+    motor_rpm(k) = gratio * wheel_rpm(k);
+
+    %Fz_r(k) = (long_transfer(k)+COG_long)*M*g;
+
+    %Fz_rl(k) = (lat_transfer(k)+COG_lat)*Fz_r(k);
+    %Fz_rr(k) = (lat_transfer(k)+COG_lat)*Fz_r(k);
+
+    %ROLLING RESISTANCE
+    mu_rolling(k) = mu_rolling_coeff; %can make this a function of velocity
+
+    Fz_rl(k) = M*((g*(COG_long))/2-lat_transfer_r(k)+long_transfer(k))+COP*Lift_A*air_density*(v(k)^2)/4;
+    Fz_rr(k) = M*((g*(COG_long))/2+lat_transfer_r(k)+long_transfer(k))+COP*Lift_A*air_density*(v(k)^2)/4;
+    Fz_fl(k) = M*((g*(1-COG_long))/2+lat_transfer_r(k)-long_transfer(k))+(1-COP)*Lift_A*air_density*(v(k)^2)/4;
+    Fz_fr(k) = M*((g*(1-COG_long))/2-lat_transfer_r(k)-long_transfer(k))+(1-COP)*Lift_A*air_density*(v(k)^2)/4;
+
+    if Fz_rl(k) < 0
+        %"rolled"
+        spun(k) = 1;
+        rolled_rl(k) = 1;
+        full_acc(k) = 0;
+    end
+    if Fz_rr(k) < 0
+        %"rolled"
+        spun(k) = 1;
+        rolled_rr(k) = 1;
+        full_acc(k) = 0;
+    end
+    if Fz_fl(k) < 0
+        %"rolled"
+        spun(k) = 1;
+        rolled_fl(k) = 1;
+        full_acc(k) = 0;
+    end
+    if Fz_fr(k) < 0
+        %"rolled"
+        spun(k) = 1;
+        rolled_fr(k) = 1;
+        full_acc(k) = 0;
+    end
+
+    % Flat_rl(k) = Flat_r(k)*lat_bal_l(k) / 2;
+    % Flat_rr(k) = Flat_r(k)*lat_bal_r(k) / 2;
+
+    Flat_rl(k) = Flat_r(k)*Fz_rl(k)/(Fz_rl(k)+Fz_rr(k));
+    Flat_rr(k) = Flat_r(k)*Fz_rr(k)/(Fz_rl(k)+Fz_rr(k));
+
+    mu_lat_rl(k) = Flat_rl(k)/Fz_rl(k);
+    mu_lat_rr(k) = Flat_rr(k)/Fz_rr(k);
+
+    Fdrive_rl(k) = Fz_rl(k) * mu_long_max*sqrt(1-(Flat_rl(k)/(Fz_rl(k)*mu_lat_max)));
+
+    %Fz_f(k) = long_bal_f(k)*M_f*g;
+
+    %Fz_fl(k) = lat_bal_l(k)*COG_lat*Fz_f(k);
+    %Fz_fr(k) = lat_baxl_r(k)*COG_lat*Fz_f(k);
+
+
+
+    
+
+    Flat_fl(k) = Flat_f(k)*Fz_fl(k)/(Fz_fl(k)+Fz_fr(k));
+    Flat_fr(k) = Flat_f(k)*Fz_fr(k)/(Fz_fl(k)+Fz_fr(k));
+
+    mu_lat_fl(k) = Flat_fl(k)/Fz_fl(k);
+    mu_lat_fr(k) = Flat_fr(k)/Fz_fr(k);
+
+
+
+    
+
+    %determines if torque demand is above max torque of motor
+
+    max_motor_torque(k) = max_torque(motor_rpm(k));
+    max_torque_out(k) = gratio*max_motor_torque(k); %Nm
+    Trl(k) = Fdrive_rl(k)*(tyre_dia/2);
+    Trl_out(k) = Trl(k);
+
+    if Trl(k) > max_torque_out(k)
+        Fdrive_rl(k) = max_torque_out(k) / (tyre_dia/2);
+        Trl_out(k) = max_torque_out(k);
+        torque_lim(k) = 1;
+        full_acc(k) = 0;
+    end
+
+
+
+
+    Fdrive_rr(k) = Fz_rr(k) * mu_long_max*sqrt(1-(Flat_rr(k)/(Fz_rr(k)*mu_lat_max)));
+    
+
+
+    Trr(k) = Fdrive_rr(k)*(tyre_dia/2);
+    Trr_out(k) = Trr(k);
+
+    if Trr(k) > max_torque_out(k)
+        Fdrive_rr(k) = max_torque_out(k) / (tyre_dia/2);
+        Trr_out(k) = max_torque_out(k);
+        torque_lim(k) = 1;
+        full_acc(k) = 0;
+    end
+
+   %checks rpm limit
+
+    if motor_rpm(k) > rpm_limit
+        Fdrive_rl(k) = 0;
+        Fdrive_rr(k) = 0;
+        Trr(k) = Fdrive_rr(k)*(tyre_dia/2);
+        Trr_out(k) = Trr(k);
+        Trl(k) = Fdrive_rl(k)*(tyre_dia/2);
+        Trl_out(k) = Trl(k);
+        rpm_lim(k) = 1;
+        full_acc(k) = 0;
+    end
+
+
+
+    Tdrive_l(k) = Trl_out(k)/gratio;
+    Tdrive_r(k) = Trr_out(k)/gratio;
+
+
+
+    Fdrive(k) = Fdrive_rl(k) + Fdrive_rr(k);
+
+
+    mu_long_rl(k) = Fdrive_rl(k)/Fz_rl(k);
+    mu_long_rr(k) = Fdrive_rr(k)/Fz_rr(k);
+
+    Frolling(k) = mu_rolling(k)*(Fz_rl(k)+Fz_rr(k)+cosd(delta(k))*(Fz_fl(k)+Fz_fr(k)));
+    Fdrag(k) = 0.5*Drag_A*v_temp_test^2;
+
+    adrive_tyre(k) = (Fdrive(k)-Frolling(k)-Fdrag(k))/M; %include drag/rolling resistance here later
+
+    acc(k) = adrive_tyre(k);
+
+
+    %insert function here inputting current RPM and drive force (torque) to get
+    %motor efficiency
+
+    motor_eff_l(k) = motor_efficiency(motor_rpm(k),Trl_out(k));
+    motor_eff_r(k) = motor_efficiency(motor_rpm(k),Trr_out(k));
+
+
+    % t = dels_scale(k) / v_temp_test; %could incorporate SUVAT later on
+    %t(k) = -v_temp_test/adrive_tyre(k) + sqrt((v_temp_test)^2+0.5*dels_scale(k)*adrive_tyre(k))/adrive_tyre(k);
+
+    %v_temp_test = v_temp_test + t(k) * adrive_tyre(k);
+
+
+
+    v_temp_test = sqrt(v(k-1)^2+2*adrive_tyre(k)*dels_scale(k));
+    
+    % if motor_rpm > rpm_limit
+    %     Fdrive_rl = 0;
+    %     Fdrive_rr = 0;
+    %     v_temp_test = (pi*tyre_dia)*rpm_limit/(60*gratio);
+    % end
+
+
+
+    if abs(imag(v_temp_test)) > 0
+        spun(k) = 1;
+        car_spun(k) = 1;
+        full_acc(k) = 0;
+        torque_lim(k) = 0;
+        rpm_lim(k) = 0;
+    end
+    accel = 0;
+    v_temp = v_temp_test;
+    acc(k) = adrive_tyre(k);
+
+    while spun(k) == 0
+        v_temp = v_temp_test;
+        acc_cur = acc(k);
+        for h = k+1:length(curv_scale)
+            
+            wheel_rpm_cur = 60*v_temp_test / (pi*tyre_dia);
+            motor_rpm_cur = gratio * wheel_rpm_cur;
+        
+
+
+            R = abs(1/curv_scale(h));
+            beta = atand(l_r/R);
+            delta_cur = atand(L/R);
+            omega_cur = (v_temp*tand(delta_cur))/L;
+            R_dash = R/(cosd(beta));
+            Flat_cur = M*v_temp^2/R_dash;
+            acc_lat_cur = sign(curv_scale(h))*Flat_cur/M;
+            Flat_r_cur = (cosd(delta_cur)*l_f*Flat_cur)/(l_r+cosd(delta_cur)*l_f);
+            Flat_f_cur = Flat_cur - Flat_r_cur;
+
+            %current balance
+
+            lat_transfer_f_cur = ((1-COG_long)*acc_lat_cur*COG_h)/(TW);
+            lat_transfer_r_cur = ((COG_long)*acc_lat_cur*COG_h)/(TW);
+
+            long_transfer_cur = (acc_cur*COG_h)/(2*L);
+
+            % lat_transfer_cur = (4*acc_lat_cur*COG_h)/(TW*g);
+            %
+            % lat_bal_l_cur = 1-lat_transfer_cur;
+            % lat_bal_r_cur = 1+lat_transfer_cur;
+            %
+            % long_transfer_cur = (acc_cur*COG_h)/(g*L*COG_long*(1-COG_long));
+            %
+            % long_bal_r_cur = 1+long_transfer_cur;
+            % long_bal_f_cur = 1-long_transfer_cur;
+
+
+
+
+
+
+
+            %BRAKING
+
+            %front maximum capacity
+
+            %Fz_f_cur = long_bal_f_cur*M_f*g;
+
+            %Fz_fl_cur = lat_bal_l_cur*COG_lat*Fz_f_cur;
+            %Fz_fr_cur = lat_bal_r_cur*COG_lat*Fz_f_cur;
+            mu_rolling_cur = mu_rolling_coeff; %can make this a function of velocity
+
+            Fz_rl_cur = M*((g*(COG_long))/2-lat_transfer_r_cur+long_transfer_cur)+COP*Lift_A*air_density*(v_temp^2)/4;
+            Fz_rr_cur = M*((g*(COG_long))/2+lat_transfer_r_cur+long_transfer_cur)+COP*Lift_A*air_density*(v_temp^2)/4;
+            Fz_fl_cur = M*((g*(1-COG_long))/2+lat_transfer_r_cur-long_transfer_cur)+(1-COP)*Lift_A*air_density*(v_temp^2)/4;
+            Fz_fr_cur = M*((g*(1-COG_long))/2-lat_transfer_r_cur-long_transfer_cur)+(1-COP)*Lift_A*air_density*(v_temp^2)/4;
+
+            if Fz_rl_cur < 0
+                "rolled"
+                spun(k) = 1;
+                rolled_rl(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;
+            end
+            if Fz_rr_cur < 0
+                "rolled"
+                spun(k) = 1;
+                rolled_r(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+            end
+            if Fz_fl_cur < 0
+                "rolled"
+                spun(k) = 1;
+                rolled_fl(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+            end
+            if Fz_fr_cur < 0
+                "rolled"
+                spun(k) = 1;
+                rolled_fr(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+            end
+
+            Flat_fl_cur = Flat_f_cur*Fz_fl_cur/(Fz_fl_cur+Fz_fr_cur);
+            Flat_fr_cur = Flat_f_cur*Fz_fr_cur/(Fz_fl_cur+Fz_fr_cur);
+
+            mu_lat_fl_cur = Flat_fl_cur/Fz_fl_cur;
+            mu_lat_fr_cur = Flat_fr_cur/Fz_fr_cur;
+
+
+
+            Fbrake_fl_cap_cur = Fz_fl_cur*mu_long_max*sqrt(1-(Flat_fl_cur/(Fz_fl_cur*mu_lat_max)));
+            Fbrake_fr_cap_cur = Fz_fr_cur*mu_long_max*sqrt(1-(Flat_fr_cur/(Fz_fr_cur*mu_lat_max)));
+
+            if Fbrake_fl_cap_cur > Fbrake_fr_cap_cur
+                Fbrake_fl_cap_cur = Fbrake_fr_cap_cur;
+            end
+            if Fbrake_fl_cap_cur < Fbrake_fr_cap_cur
+                Fbrake_fr_cap_cur = Fbrake_fl_cap_cur;
+            end
+
+
+            Fbrake_f_cap_cur = Fbrake_fl_cap_cur + Fbrake_fr_cap_cur;
+
+            %rear maximum capacity
+
+            %Fz_r_cur = long_bal_r_cur*M_r*g;
+
+            %Fz_rl_cur = lat_bal_l_cur*Fz_r_cur/2;
+            %Fz_rr_cur = lat_bal_r_cur*Fz_r_cur/2;
+
+            Flat_rl_cur = Flat_r_cur*Fz_rl_cur/(Fz_rl_cur+Fz_rr_cur);
+            Flat_rr_cur = Flat_r_cur*Fz_rr_cur/(Fz_rl_cur+Fz_rr_cur);
+
+            mu_lat_rl_cur = Flat_rl_cur/Fz_rl_cur;
+            mu_lat_rr_cur = Flat_rr_cur/Fz_rr_cur;
+
+
+            Fbrake_rl_cap_cur = Fz_rl_cur*mu_long_max*sqrt(1-(Flat_rl_cur/(Fz_rl_cur*mu_lat_max)));
+            Fbrake_rr_cap_cur = Fz_rr_cur*mu_long_max*sqrt(1-(Flat_rr_cur/(Fz_rr_cur*mu_lat_max)));
+
+            if Fbrake_rl_cap_cur > Fbrake_rr_cap_cur
+                Fbrake_rl_cap_cur = Fbrake_rr_cap_cur;
+            end
+            if Fbrake_rl_cap_cur < Fbrake_rr_cap_cur
+                Fbrake_rr_cap_cur = Fbrake_rl_cap_cur;
+            end
+
+
+            Fbrake_r_cap_cur = Fbrake_rl_cap_cur + Fbrake_rr_cap_cur;
+
+            %selecting wheel that will lock up first
+
+            if Fbrake_r_cap_cur < Fbrake_f_cap_cur
+                Fbrake_r_cur = Fbrake_r_cap_cur;
+                Fbrake_f_dash_cur = Fbrake_r_cur*(1/(brake_bias)-1);
+                Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+            end
+
+            if Fbrake_r_cap_cur > Fbrake_f_cap_cur
+                Fbrake_f_dash_cur = Fbrake_f_cap_cur;
+                Fbrake_r_cur = Fbrake_f_dash_cur*brake_bias/(1-brake_bias);
+                Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+            end
+            % %REGEN
+            % if regen == 1
+            %     if Fbrake_r_cap_cur < Fbrake_f_cap_cur
+            %         Fbrake_r_cur = Fbrake_r_cap_cur;
+            %         Fbrake_f_dash_cur = Fbrake_r_cur*(1/(brake_bias)-1);
+            %         Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+            %     end
+            % 
+            %     if Fbrake_r_cap_cur >= Fbrake_f_cap_cur
+            %         Fbrake_f_dash_cur = Fbrake_f_cap_cur;
+            %         Fbrake_r_cur = Fbrake_f_dash_cur*brake_bias/(1-brake_bias);
+            %         Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+            % 
+            %     end
+            % 
+            %     Fbrake_r_pad_cur = Fbrake_f_dash_cur*regen_static_brake_bias/(1-regen_static_brake_bias);
+            %     Fbrake_r_regen_cur = Fbrake_r_cur-Fbrake_r_pad_cur;
+            %     if Fbrake_r_regen_cur < 0
+            %         Fbrake_r_regen_cur = 0;
+            %         "bad"
+            %     end
+            % 
+            %     Tregen_cur = Fbrake_r_regen_cur*(tyre_dia/2);
+            % 
+            %     if Tregen_cur > 2*max_torque(motor_rpm_cur)
+            %         Tregen_out_cur = 2*max_torque(motor_rpm_cur);
+            %         Fbrake_r_regen_cur = Tregen_out_cur / ((tyre_dia/2));
+            %         Fbrake_r_cur = Fbrake_r_regen_cur + Fbrake_r_pad_cur;
+            %     end
+            % 
+            % end
+
+            Fbrake_cur = Fbrake_f_cur + Fbrake_r_cur;
+
+            Frolling_cur = mu_rolling_cur*(Fz_rl_cur+Fz_rr_cur+cosd(delta_cur)*(Fz_fl_cur+Fz_fr_cur));
+            Fdrag_cur = 0.5*Drag_A*v_temp^2;
+
+            abrake_tyre_cur = (Fbrake_cur+Frolling_cur+Fdrag_cur)/M; %include drag/rolling resistance here later
+
+            acc_cur = -abrake_tyre_cur;
+
+            if mu_lat_fl_cur > mu_lat_max
+                spun_fl(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+            end
+            if mu_lat_fr_cur > mu_lat_max
+                spun_fr(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+            end
+            if mu_lat_rl_cur > mu_lat_max
+                spun_rl(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+            end
+            if mu_lat_rr_cur > mu_lat_max
+                spun_rr(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+            end
+
+            if mu_lat_fl_cur > mu_lat_max || mu_lat_fr_cur > mu_lat_max || mu_lat_rr_cur > mu_lat_max || mu_lat_rl_cur > mu_lat_max
+                spun(k) = 1;
+                full_acc(k) = 0;
+                torque_lim(k) = 0;
+                rpm_lim(k) = 0;                
+                break
+            end
+
+            %t_test = dels_scale(h) / v_temp;
+            %t_test = -v_temp_test/abrake_tyre + sqrt(v_temp_test^2+0.5*dels_scale(h)*abrake_tyre)/abrake_tyre;
+            %v_temp = v_temp - abrake_tyre*t_test;
+
+            v_temp = sqrt(v_temp^2-2*abrake_tyre_cur*dels_scale(h));
+
+            k;
+            h;
+
+            if v_temp < 0 || abs(imag(v_temp))>0
+                v(k) = v_temp_test;
+                accel = 1;
+                break
+            end
+        end
+        if accel == 1
+            break
+        end
+
+        if spun(k) == 1
+            break
+        end
+
+        %OVERRUN, allows car to slow down on next lap
+        overrunspin = k;
+        if v_temp > 0
+            for h = 2:length(curv_scale)
+
+                wheel_rpm_cur = 60*v_temp_test / (pi*tyre_dia);
+                motor_rpm_cur = gratio * wheel_rpm_cur;
+
+
+                R = abs(1/curv_scale(h));
+                beta = atand(l_r/R);
+                delta_cur = atand(L/R);
+                omega_cur = (v_temp*tand(delta_cur))/L;
+                R_dash = R/(cosd(beta));
+                Flat_cur = M*v_temp^2/R_dash;
+                acc_lat_cur = sign(curv_scale(h))*Flat_cur/M;
+                Flat_r_cur = (cosd(delta_cur)*l_f*Flat_cur)/(l_r+cosd(delta_cur)*l_f);
+                Flat_f_cur = Flat_cur - Flat_r_cur;
+   
+                %current balance
+               lat_transfer_f_cur = ((1-COG_long)*acc_lat_cur*COG_h)/(TW);
+               lat_transfer_r_cur = ((COG_long)*acc_lat_cur*COG_h)/(TW);
+
+               long_transfer_cur = (acc_cur*COG_h)/(2*L);
+
+               % lat_transfer_cur = (4*acc_lat_cur*COG_h)/(TW*g);
+               %
+               % lat_bal_l_cur = 1-lat_transfer_cur;
+               % lat_bal_r_cur = 1+lat_transfer_cur;
+               %
+               % long_transfer_cur = (acc_cur*COG_h)/(g*L*COG_long*(1-COG_long));
+               %
+               % long_bal_r_cur = 1+long_transfer_cur;
+               % long_bal_f_cur = 1-long_transfer_cur;
+
+
+
+
+               %BRAKING
+
+                %front maximum capacity
+
+                %Fz_f_cur = long_bal_f_cur*M_f*g;
+
+                %Fz_fl_cur = lat_bal_l_cur*COG_lat*Fz_f_cur;
+                %Fz_fr_cur = lat_bal_r_cur*COG_lat*Fz_f_cur;
+                mu_rolling_cur = mu_rolling_coeff; %can make this a function of velocity
+
+                Fz_rl_cur = M*((g*(COG_long))/2-lat_transfer_r_cur+long_transfer_cur)+COP*Lift_A*air_density*(v_temp^2)/4;
+                Fz_rr_cur = M*((g*(COG_long))/2+lat_transfer_r_cur+long_transfer_cur)+COP*Lift_A*air_density*(v_temp^2)/4;
+                Fz_fl_cur = M*((g*(1-COG_long))/2+lat_transfer_r_cur-long_transfer_cur)+(1-COP)*Lift_A*air_density*(v_temp^2)/4;
+                Fz_fr_cur = M*((g*(1-COG_long))/2-lat_transfer_r_cur-long_transfer_cur)+(1-COP)*Lift_A*air_density*(v_temp^2)/4;
+
+                if Fz_rl_cur < 0
+                    "rolled"
+                    spun(k) = 1;
+                    rolled_rl(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;
+                end
+                if Fz_rr_cur < 0
+                    "rolled"
+                    spun(k) = 1;
+                    rolled_rr(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;                    
+                end
+                if Fz_fl_cur < 0
+                    "rolled"
+                    spun(k) = 1;
+                    rolled_fl(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;                    
+                end
+                if Fz_fr_cur < 0
+                    "rolled"
+                    spun(k) = 1;
+                    rolled_fr(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;                    
+                end
+
+                Flat_fl_cur = Flat_f_cur*Fz_fl_cur/(Fz_fl_cur+Fz_fr_cur);
+                Flat_fr_cur = Flat_f_cur*Fz_fr_cur/(Fz_fl_cur+Fz_fr_cur);
+
+                mu_lat_fl_cur = Flat_fl_cur/Fz_fl_cur;
+                mu_lat_fr_cur = Flat_fr_cur/Fz_fr_cur;
+
+                %Fz_r_cur = long_bal_r_cur*M_r*g;
+
+
+
+
+
+                Fbrake_fl_cap_cur = Fz_fl_cur*mu_long_max*sqrt(1-(Flat_fl_cur/(Fz_fl_cur*mu_lat_max)));
+                Fbrake_fr_cap_cur = Fz_fr_cur*mu_long_max*sqrt(1-(Flat_fr_cur/(Fz_fr_cur*mu_lat_max)));
+
+                if Fbrake_fl_cap_cur > Fbrake_fr_cap_cur
+                    Fbrake_fl_cap_cur = Fbrake_fr_cap_cur;
+                end
+                if Fbrake_fl_cap_cur < Fbrake_fr_cap_cur
+                    Fbrake_fr_cap_cur = Fbrake_fl_cap_cur;
+                end
+
+
+                Fbrake_f_cap_cur = Fbrake_fl_cap_cur + Fbrake_fr_cap_cur;
+
+                %rear maximum capacity
+
+
+
+                Flat_rl_cur = Flat_r_cur*Fz_rl_cur/(Fz_rl_cur+Fz_rr_cur);
+                Flat_rr_cur = Flat_r_cur*Fz_rr_cur/(Fz_rl_cur+Fz_rr_cur);
+
+                mu_lat_rl_cur = Flat_rl_cur/Fz_rl_cur;
+                mu_lat_rr_cur = Flat_rr_cur/Fz_rr_cur;
+
+
+                Fbrake_rl_cap_cur = Fz_rl_cur*mu_long_max*sqrt(1-(Flat_rl_cur/(Fz_rl_cur*mu_lat_max)));
+                Fbrake_rr_cap_cur = Fz_rr_cur*mu_long_max*sqrt(1-(Flat_rr_cur/(Fz_rr_cur*mu_lat_max)));
+
+                if Fbrake_rl_cap_cur > Fbrake_rr_cap_cur                   
+                    Fbrake_rl_cap_cur = Fbrake_rr_cap_cur;
+                end
+                if Fbrake_rl_cap_cur < Fbrake_rr_cap_cur
+                    Fbrake_rr_cap_cur = Fbrake_rl_cap_cur;
+                end
+
+
+                Fbrake_r_cap_cur = Fbrake_rl_cap_cur + Fbrake_rr_cap_cur;
+
+                %selecting wheel that will lock up first
+
+                if Fbrake_r_cap_cur < Fbrake_f_cap_cur
+                    Fbrake_r_cur = Fbrake_r_cap_cur;
+                    Fbrake_f_dash_cur = Fbrake_r_cur*(1/(brake_bias)-1);
+                    Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+                end
+
+                if Fbrake_r_cap_cur > Fbrake_f_cap_cur
+                    Fbrake_f_dash_cur = Fbrake_f_cap_cur;
+                    Fbrake_r_cur = Fbrake_f_dash_cur*brake_bias/(1-brake_bias);
+                    Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+                end
+
+                % %REGEN
+                % if regen == 1
+                %     if Fbrake_r_cap_cur < Fbrake_f_cap_cur
+                %         Fbrake_r_cur = Fbrake_r_cap_cur;
+                %         Fbrake_f_dash_cur = Fbrake_r_cur*(1/(brake_bias)-1);
+                %         Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+                %     end
+                % 
+                %     if Fbrake_r_cap_cur >= Fbrake_f_cap_cur
+                %         Fbrake_f_dash_cur = Fbrake_f_cap_cur;
+                %         Fbrake_r_cur = Fbrake_f_dash_cur*brake_bias/(1-brake_bias);
+                %         Fbrake_f_cur = cosd(delta_cur)*Fbrake_f_dash_cur;
+                % 
+                %     end
+                % 
+                %     Fbrake_r_pad_cur = Fbrake_f_dash_cur*regen_static_brake_bias/(1-regen_static_brake_bias);
+                %     Fbrake_r_regen_cur = Fbrake_r_cur-Fbrake_r_pad_cur;
+                %     if Fbrake_r_regen_cur < 0
+                %         Fbrake_r_regen_cur = 0;
+                %         "bad"
+                %     end
+                % 
+                %     Tregen_cur = Fbrake_r_regen_cur*(tyre_dia/2);
+                % 
+                %     if Tregen_cur > 2*max_torque(motor_rpm_cur)
+                %         Tregen_out_cur = 2*max_torque(motor_rpm_cur);
+                %         Fbrake_r_regen_cur = Tregen_out_cur / ((tyre_dia/2));
+                %         Fbrake_r_cur = Fbrake_r_regen_cur + Fbrake_r_pad_cur;
+                %     end
+                % 
+                % end
+
+                Fbrake_cur = Fbrake_f_cur + Fbrake_r_cur;
+
+                Frolling_cur = mu_rolling_cur*(Fz_rl_cur+Fz_rr_cur+cosd(delta_cur)*(Fz_fl_cur+Fz_fr_cur));
+                Fdrag_cur = 0.5*Drag_A*v_temp^2;
+
+                abrake_tyre_cur = (Fbrake_cur+Frolling_cur+Fdrag_cur)/M; %include drag/rolling resistance here later
+                acc_cur = -abrake_tyre_cur;
+
+                if mu_lat_fl_cur > mu_lat_max
+                    spun_fl(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;                    
+                end
+                if mu_lat_fr_cur > mu_lat_max
+                    spun_fr(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;                    
+                end
+                if mu_lat_fl_cur > mu_lat_max
+                    spun_rl(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;                    
+                end
+                if mu_lat_fl_cur > mu_lat_max
+                    spun_rr(k) = 1;
+                    full_acc(k) = 0;
+                    torque_lim(k) = 0;
+                    rpm_lim(k) = 0;                    
+                end
+
+                if mu_lat_fl_cur > mu_lat_max || mu_lat_fr_cur > mu_lat_max || mu_lat_rr_cur > mu_lat_max || mu_lat_rl_cur > mu_lat_max
+                    spun(k) = 1;
+                    break
+                end
+
+                t_test = dels_scale(h) / v_temp;
+                %t_test = -v_temp_test/abrake_tyre + sqrt(v_temp_test^2+0.5*dels_scale(h)*abrake_tyre)/abrake_tyre;
+                v_temp = v_temp - abrake_tyre_cur*t_test;
+
+                if v_temp < 0
+                    v(k) = v_temp_test;
+                    accel = 1;
+                    break
+                end
+
+            end
+
+            if accel == 1
+                break
+            end
+
+        end
+
+        spun(k) = 1;
+        overrunspin = k
+
+    end
+
+
+    if spun(k) == 1
+
+
+        v_temp = v(k-1);
+        R = abs(1/curv_scale(k));
+        beta = atand(l_r/R);
+        delta(k) = atand(L/R);
+        omega(k) = (v_temp*tand(delta_cur))/L;
+        R_dash = R/(cosd(beta));
+        Flat(k) = M*v_temp^2/R_dash;
+        acc_lat(k) = sign(curv_scale(k))*Flat(k)/M;
+        Flat_r(k) = (cosd(delta(k))*l_f*Flat(k))/(l_r+cosd(delta(k))*l_f);
+        Flat_f(k) = Flat(k) - Flat_r(k);
+
+        %balance
+
+
+        lat_transfer_f(k) = ((1-COG_long)*acc_lat(k)*COG_h)/(TW);
+        lat_transfer_r(k) = ((COG_long)*acc_lat(k)*COG_h)/(TW);
+
+        long_transfer(k) = (acc(k-1)*COG_h)/(2*L);
+        % lat_transfer(k) = (4*acc_lat(k)*COG_h)/(TW*g);
+        %
+        % lat_bal_l(k) = 1-lat_transfer(k);
+        % lat_bal_r(k) = 1+lat_transfer(k);
+        %
+        % long_transfer(k) = (acc(k-1)*COG_h)/(g*L*COG_long*(1-COG_long));
+        %
+        % long_bal_r(k) = 1+long_transfer(k);
+        % long_bal_f(k) = 1-long_transfer(k);
+
+
+        wheel_rpm(k) = 60*v_temp / (pi*tyre_dia);
+        motor_rpm(k) = gratio * wheel_rpm(k);
+
+        Trl_out(k) = 0;
+        Trr_out(k) = 0;
+        Trl(k) = 0;
+        Trr(k) = 0;   
+        Fdrive_rl(k) = 0;
+        Fdrive_rr(k) = 0;
+        Fdrive(k) = 0;
+
+        Tdrive_l(k) = Trl_out(k)/gratio;
+        Tdrive_r(k) = Trr_out(k)/gratio;
+
+
+        %BRAKING
+
+        %front maximum capacity
+
+        Fz_f(k) = long_bal_f(k)*M_f*g;
+
+        %Fz_fl(k) = lat_bal_l(k)*COG_lat*Fz_f(k);
+        %Fz_fr(k) = lat_bal_r(k)*COG_lat*Fz_f(k);
+        mu_rolling(k) = mu_rolling_coeff;
+
+        Fz_rl(k) = M*((g*(COG_long))/2-lat_transfer_r(k)+long_transfer(k))+COP*Lift_A*air_density*(v_temp^2)/4;
+        Fz_rr(k) = M*((g*(COG_long))/2+lat_transfer_r(k)+long_transfer(k))+COP*Lift_A*air_density*(v_temp^2)/4;
+        Fz_fl(k) = M*((g*(1-COG_long))/2+lat_transfer_r(k)-long_transfer(k))+(1-COP)*Lift_A*air_density*(v_temp^2)/4;
+        Fz_fr(k) = M*((g*(1-COG_long))/2-lat_transfer_r(k)-long_transfer(k))+(1-COP)*Lift_A*air_density*(v_temp^2)/4;
+
+        if Fz_rl_cur < 0
+            "rolled"
+            spun(k) = 1;
+            full_acc(k) = 0;
+            torque_lim(k) = 0;
+            rpm_lim(k) = 0;
+        end
+        if Fz_rr_cur < 0
+            "rolled"
+            spun(k) = 1;
+            full_acc(k) = 0;
+            torque_lim(k) = 0;
+            rpm_lim(k) = 0;            
+        end
+        if Fz_fl_cur < 0
+            "rolled"
+            spun(k) = 1;
+            full_acc(k) = 0;
+            torque_lim(k) = 0;
+            rpm_lim(k) = 0;            
+        end
+        if Fz_fr_cur < 0
+            "rolled"
+            spun(k) = 1;
+            full_acc(k) = 0;
+            torque_lim(k) = 0;
+            rpm_lim(k) = 0;            
+        end
+
+        Flat_fl(k) = Flat_f(k)*Fz_fl(k)/(Fz_fl(k)+Fz_fr(k));
+        Flat_fr(k) = Flat_f(k)*Fz_fr(k)/(Fz_fl(k)+Fz_fr(k));
+
+        mu_lat_fl(k) = Flat_fl(k)/Fz_fl(k);
+        mu_lat_fr(k) = Flat_fr(k)/Fz_fr(k);
+
+
+
+        Fbrake_fl_cap(k) = Fz_fl(k)*mu_long_max*sqrt(1-(Flat_fl(k)/(Fz_fl(k)*mu_lat_max)));
+        Fbrake_fr_cap(k) = Fz_fr(k)*mu_long_max*sqrt(1-(Flat_fr(k)/(Fz_fr(k)*mu_lat_max)));
+
+        if Fbrake_fl_cap(k) > Fbrake_fr_cap(k)
+            Fbrake_fr_cap_eff(k) = Fbrake_fr_cap(k);
+            Fbrake_fl_cap_eff(k) = Fbrake_fr_cap(k);
+        end
+        if Fbrake_fl_cap(k) <= Fbrake_fr_cap(k)
+            Fbrake_fl_cap_eff(k) = Fbrake_fl_cap(k);
+            Fbrake_fr_cap_eff(k) = Fbrake_fl_cap(k);
+        end
+
+        Fbrake_f_cap(k) = Fbrake_fl_cap_eff(k) + Fbrake_fr_cap_eff(k);
+
+        %rear maximum capacity
+
+
+        Flat_rl(k) = Flat_r(k)*Fz_rl(k)/(Fz_rl(k)+Fz_rr(k));
+        Flat_rr(k) = Flat_r(k)*Fz_rr(k)/(Fz_rl(k)+Fz_rr(k));
+
+        mu_lat_rl(k) = Flat_rl(k)/Fz_rl(k);
+        mu_lat_rr(k) = Flat_rr(k)/Fz_rr(k);
+
+
+
+        Fbrake_rl_cap(k) = Fz_rl(k)*mu_long_max*sqrt(1-(Flat_rl(k)/(Fz_rl(k)*mu_lat_max)));
+        Fbrake_rr_cap(k) = Fz_rr(k)*mu_long_max*sqrt(1-(Flat_rr(k)/(Fz_rr(k)*mu_lat_max)));
+
+
+        if Fbrake_rl_cap(k) > Fbrake_rr_cap(k)
+            Fbrake_rr_cap_eff(k) = Fbrake_rr_cap(k);
+            Fbrake_rl_cap_eff(k) = Fbrake_rr_cap(k);
+        end
+        if Fbrake_rl_cap(k) <= Fbrake_rr_cap(k)
+            Fbrake_rl_cap_eff(k) = Fbrake_rl_cap(k);
+            Fbrake_rr_cap_eff(k) = Fbrake_rl_cap(k);
+        end
+
+        Fbrake_r_cap(k) = Fbrake_rl_cap_eff(k) + Fbrake_rr_cap_eff(k);
+
+        %selecting wheel that will lock up first
+
+        if Fbrake_r_cap(k) < Fbrake_f_cap(k)
+            Fbrake_r(k) = Fbrake_r_cap(k);
+            Fbrake_f_dash(k) = Fbrake_r(k)*(1/(brake_bias)-1);
+            Fbrake_f(k) = cosd(delta(k))*Fbrake_f_dash(k);
+            Fbrake_fl_cap_eff(k) = Fbrake_f(k)/2;
+            Fbrake_fr_cap_eff(k) = Fbrake_f(k)/2;
+
+        end
+
+        if Fbrake_r_cap(k) >= Fbrake_f_cap(k)
+            Fbrake_f_dash(k) = Fbrake_f_cap(k);
+            Fbrake_r(k) = Fbrake_f_dash(k)*brake_bias/(1-brake_bias);
+            Fbrake_f(k) = cosd(delta(k))*Fbrake_f_dash(k);
+            Fbrake_rl_cap_eff(k) = Fbrake_r(k)/2;
+            Fbrake_rr_cap_eff(k) = Fbrake_r(k)/2;
+        end
+
+        %REGEN
+        % if regen == 1
+        % 
+        %     if Fbrake_r_cap(k) < Fbrake_f_cap(k)
+        %         Fbrake_r(k) = Fbrake_r_cap(k);
+        %         Fbrake_f_dash(k) = Fbrake_r(k)*(1/(regen_overall_brake_bias)-1);
+        %         Fbrake_f(k) = cosd(delta(k))*Fbrake_f_dash(k);
+        %     end
+        % 
+        %     if Fbrake_r_cap(k) >= Fbrake_f_cap(k)
+        %         Fbrake_f_dash(k) = Fbrake_f_cap(k);
+        %         Fbrake_r(k) = Fbrake_f_dash(k)*regen_overall_brake_bias/(1-regen_overall_brake_bias);
+        %         Fbrake_f(k) = cosd(delta(k))*Fbrake_f_dash(k);
+        % 
+        %     end
+        % 
+        %     Fbrake_r_pad(k) = Fbrake_f_dash(k)*regen_static_brake_bias/(1-regen_static_brake_bias);
+        %     Fbrake_r_regen(k) = Fbrake_r(k)-Fbrake_r_pad(k);
+        %     if Fbrake_r_regen(k) < 0
+        %         Fbrake_r_regen(k) = 0;
+        %         "bad"
+        %     end
+        % 
+        %     Tregen(k) = Fbrake_r_regen(k)*(tyre_dia/2);
+        %     Tregen_out(k) = Tregen(k);
+        % 
+        %     if Tregen(k) > 2*max_torque(motor_rpm(k))
+        %         Tregen_out(k) = 2*max_torque(motor_rpm(k));
+        %         Fbrake_r_regen(k) = Tregen_out(k) / ((tyre_dia/2));
+        %         Fbrake_r(k) = Fbrake_r_regen(k) + Fbrake_r_pad(k);
+        %     end
+        % 
+        %     Tregen_l(k) = Tregen_out(k)/2;
+        %     Tregen_r(k) = Tregen_out(k)/2;
+        % 
+        % end
+
+        if regen == 1
+            Fregen_max = Fregen_max_rl + Fregen_max_rr;
+
+            if Fbrake_r(k) < Fregen_max
+                Fbrake_r_regen(k) = Fbrake_r(k);
+                Tregen(k) = Fbrake_r_regen(k)*(tyre_dia/2);
+                Tregen_out(k) = Tregen(k);
+                Tregen_l(k) = Tregen_out(k)/2;
+                Tregen_r(k) = Tregen_out(k)/2;
+
+                if Tregen_l(k) > max_torque(motor_rpm(k))
+                    Fbrake_r_regen(k) = 0;
+                    Tregen(k) = Fbrake_r_regen(k)*(tyre_dia/2);
+                    Tregen_out(k) = Tregen(k);
+                    Tregen_l(k) = Tregen_out(k)/2;
+                    Tregen_r(k) = Tregen_out(k)/2;
+                    "ERROR!"
+                end
+
+                if Tregen_r(k) > max_torque(motor_rpm(k))
+                    Fbrake_r_regen(k) = 0;
+                    Tregen(k) = Fbrake_r_regen(k)*(tyre_dia/2);
+                    Tregen_out(k) = Tregen(k);
+                    Tregen_l(k) = Tregen_out(k)/2;
+                    Tregen_r(k) = Tregen_out(k)/2;
+                    "ERROR!"
+                end
+
+                Tregen_l(k) = Tregen_out(k)/2;
+                Tregen_r(k) = Tregen_out(k)/2;
+
+            else
+                Fbrake_r_regen(k) = 0;
+                Tregen(k) = 0;
+                Tregen_out(k) = 0;
+                Tregen_l(k) = 0;
+                Tregen_r(k) = 0;
+            end
+
+
+
+
+
+        end
+
+        Fbrake(k) = Fbrake_f(k) + Fbrake_r(k);
+
+
+
+
+        mu_long_fl(k) = -Fbrake_fl_cap_eff(k)/Fz_fl(k);
+        mu_long_fr(k) = -Fbrake_fr_cap_eff(k)/Fz_fr(k);
+        mu_long_rl(k) = -Fbrake_rl_cap_eff(k)/Fz_rl(k);
+        mu_long_rr(k) = -Fbrake_rr_cap_eff(k)/Fz_rr(k);
+
+        Frolling(k) = mu_rolling(k)*(Fz_rl(k)+Fz_rr(k)+cosd(delta(k))*(Fz_fl(k)+Fz_fr(k)));
+        Fdrag(k) = 0.5*Drag_A*v_temp^2;
+
+
+        abrake_tyre(k) = (Fbrake(k)+Frolling(k)+Fdrag(k))/M; %include drag/rolling resistance here later
+
+        %t(k) = dels_scale(k) / v_temp;
+        %t(k) = -v_temp/abrake_tyre + sqrt(v_temp^2+0.5*dels_scale(k)*abrake_tyre)/abrake_tyre;
+        %v(k) = v_temp - abrake_tyre*t(k);
+
+        % v(k) = sqrt(v(k-1)^2-2*abrake_tyre*dels_scale(k));
+        % t(k) = -(v(k)-v(k-1))/abrake_tyre;
+
+        v(k) = sqrt(v_temp^2-2*abrake_tyre(k)*dels_scale(k));
+
+
+        acc(k) = -abrake_tyre(k);
+
+
+
+    end
+
+end
+
+
+
+
+%determining lap time
+
+
+laptime = 0;
+energy_lap = 0;
+energy_regen_lap = 0;
+for o = 2:length(v)-1
+    
+    if curv(o) < 0
+        mu_lat_rr(o) = -mu_lat_rr(o);
+        mu_lat_rl(o) = -mu_lat_rl(o);
+        mu_lat_fr(o) = -mu_lat_fr(o);
+        mu_lat_fl(o) = -mu_lat_fl(o);
+    end
+
+
+
+
+    t(o) = 2*dels_scale(o)/(v(o)+v(o-1));
+    laptime = laptime + t(o);
+    motor_rad_s(o) = 2*pi*motor_rpm(o)/60;
+    power_usage_l(o) = motor_rad_s(o)*Tdrive_l(o)/(motor_eff_l(k)*inverter_eff);
+    power_usage_r(o) = motor_rad_s(o)*Tdrive_r(o)/(motor_eff_r(k)*inverter_eff);
+    power_usage(o) = power_usage_l(o) + power_usage_r(o);
+    energy_usage(o) = power_usage(o) * t(o);
+    energy_lap = energy_lap + energy_usage(o);
+    power_limit(o) = max_power(motor_rpm(o));
+    power_regen_l(o) =  motor_rad_s(o)*Tregen_l(o)*(motor_eff_l(o)*inverter_eff);
+    power_regen_r(o) = motor_rad_s(o)*Tregen_r(o)*(motor_eff_r(o)*inverter_eff);
+    power_regen(o) = power_regen_l(o) + power_regen_r(o);
+    energy_regen(o) = power_regen(o) * t(o);
+    energy_regen_lap = energy_regen_lap + energy_regen(o);
+    if power_usage_r > power_limit(o)
+        "power over limit"
+    end
+        if power_usage_l > power_limit(o)
+        "power over limit"
+    end
+
+end
+
+time_L = 0;
+time_R = 0;
+
+if event == "skidpan"
+    for o = 60:119
+        time_R = time_R + t(o);        
+    end
+    for o = 178:237
+        time_L = time_R + t(o);        
+    end
+end
+
+time_avg_skidpan = (time_R+time_L)/2
+
+laptime
+energy_lap
+energy_regen_lap
+net_energy_lap = energy_lap-energy_regen_lap
+
+%plot(v)
+% 
+% plot(power_limit)
+% hold on
+% plot(power_regen_l)
+
+
+% 
+% max(power_usage_l)
+%plot(mu_lat_rl,mu_long_rl,"rx")
+hold on
+%plot(v)
+
+
+for o = 1:(length(curv_scale)-1)
+    if rolled_rr(o) == 1 || rolled_rl(o) == 1 || rolled_fl(o) == 1 || rolled_fr(o) == 1
+        car_roll(o) = 1;
+    end
+    if spun_rr(o) == 1 || spun_rl(o) == 1 || spun_fl(o) == 1 || spun_fr(o) == 1
+        car_spun(o) = 1;
+    end
+    if car_spun(o) == 1
+        car_roll(o) = 0;
+    end
+    if car_roll(o) == 1
+        torque_lim(o) = 0;
+        rpm_lim(o) = 0;
+        full_acc(o) = 0;
+    end
+end
+
+
+
+% plot(car_spun,"r")
+% hold on
+% plot(car_roll,"m")
+% plot(full_acc,'g')
+% plot(torque_lim,'c')
+% plot(rpm_lim,'b')
+%  hold on
+%plot(v,'color',"#77AC30")
+plot(v,'b')
+set(gca,'xticklabel',[])
+xlabel("Autocross Lap Progression")
+ylabel("Car Velocity (m/s)")
+
+%laptime*22
+%plot(power_usage_l)
+
+%print -depsc aero_autocross
+
+geartimes(it) = laptime;
+gearenergy(it) = net_energy_lap;
+
+it = it + 1;
+
+end
+
+for i = 2:length(dels_scale)
+    dist_so_far(i)=dist_so_far(i-1)+dels_scale(i);
+end
+
+% xlabel("Gear reduction ratio")
+% yyaxis left
+% plot(gearit,geartimes)
+% ylabel("Endurance Event lap time (s)")
+% 
+% yyaxis right
+% plot(gearit,gearenergy)
+% ylabel("Endurance Event net lap energy (J)")
+% 
+% ax = gca;
+% ax.XTick = unique( round(ax.XTick) );
+% 
+% print -depsc gear_comparisons

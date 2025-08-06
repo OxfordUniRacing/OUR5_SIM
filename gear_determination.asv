@@ -1,0 +1,224 @@
+%gear_determination.m
+%Uses PMM to determine gear ratio
+%Lewis Blake
+
+
+clearvars -except curv dels track_length
+close all
+
+%CAR PARAMETERS
+params.M = 320; %kg
+params.M_dist = 0.5; %dist mass over front wheels
+%params.gratio = 3; %gear reduction ratio
+params.lat_mu = 1.3; %lateral tyre coeff. friction
+params.long_mu = 1.3; %longitudinal tyre coeff. friction
+params.tyre_dia = 16; %tyre diameter, inches
+params.voltage = 400; %battery voltage, iterative function to model sag to come
+
+%EFFICIENCIES
+%Motor efficiency is in seperate "motor_efficiecy.m"
+params.efficiency.mechanical = 0.95;
+params.efficiency.inverter = 0.95;
+params.efficiency.battery = 0.95;
+
+%CONTROL
+params.control.driver_skill = 0.95; %Driver skill factor (~0.5 to 1), acts as derate
+
+%ENVIRONMENT
+g = 9.81;
+
+%TRACK PARAMETERS
+lap_length = 1000; %m
+corner_min_rad = 5; %m
+
+%TRACK SCALING
+curv_scale_val = (1/corner_min_rad) / abs(max(abs(curv))); %min hairpin radius of Xm
+curv_scale = curv * curv_scale_val;
+length_scale = lap_length / track_length;
+dels_scale = dels * length_scale;
+
+%INITIALISATION
+state.v = 5;
+state.Fz = params.M*g;
+state.Fz_drive = params.M*g*(1-params.M_dist);
+
+%DERIVED
+Fy_max = state.Fz*params.lat_mu;
+
+%SIM SETUP
+sim.runover = 50;
+
+%MAX VELOCITY (FOR COMPARISON)
+x = 1:length(curv_scale);
+
+for k = x
+    velocity_max(k) = sqrt(Fy_max/(abs(curv_scale(k)) * params.M));
+end
+
+TF = islocalmin(velocity_max);
+%plot(x,velocity_max,x(TF),velocity_max(TF),'r*')
+
+%NECESSARY FUNCTIONS
+function F_lateral = cornering(state,curv,params)
+    F_lateral = params.M * state.v^2 * abs(curv);
+end
+
+function F_brake = brake(F_lateral,state,params)
+    F_brake = state.Fz * params.long_mu * sqrt(1-(F_lateral/(state.Fz*params.lat_mu)));
+    if abs(imag(F_brake)) > 0
+        F_brake = 0;
+    end
+end
+
+function RPM_motor = motor_rpm(state,params)
+    RPM_motor = 60 * state.v * params.gratio / (params.tyre_dia * 25.4 * 10^-3 * pi);
+end
+
+function [F_drive, T_motor, efficiency, grip_limited] = drive(F_lateral,state,params)
+    F_drive_grip = state.Fz_drive * params.long_mu * sqrt(1-(F_lateral/(state.Fz*params.lat_mu)));
+    if abs(imag(F_drive_grip)) > 0
+        F_drive_grip = 0;
+    end
+    RPM_motor = motor_rpm(state,params);
+    T_motor_max = max_torque(RPM_motor);
+    T_wheel_max = T_motor_max * params.efficiency.mechanical;
+    F_wheel_max = T_wheel_max * params.gratio / (params.tyre_dia * 25.4 * 10^-3 / 2);
+
+    if F_drive_grip < F_wheel_max
+        F_drive = F_drive_grip;
+        T_motor = F_drive * (params.tyre_dia * 25.4 * 10^-3 / 2) / (params.gratio * params.efficiency.mechanical);
+        grip_limited = 1;
+    else
+        F_drive = F_wheel_max;
+        T_motor = T_motor_max;
+        grip_limited = 0;
+    end
+    efficiency = motor_efficiency(RPM_motor,T_motor);
+end
+
+it = 
+for f = 2:0.25:6
+    params.gratio = f;
+
+%SIM
+for i = 1:length(curv_scale)
+    state.brake_flag = 0;
+
+    state.t = dels_scale(i) / state.v;
+    F_lateral = cornering(state,curv_scale(i),params);
+    [F_drive, T_motor, efficiency, grip_limited] = drive(F_lateral,state,params);
+    F_drive = F_drive * params.control.driver_skill;
+    T_motor = T_motor * params.control.driver_skill;
+    temp.v = state.v + state.t * F_drive / params.M;
+    v_trial = temp.v;
+
+    for k = i+1:length(curv_scale)+sim.runover
+        if k > length(curv_scale)
+            o = k - length(curv_scale);
+        else
+            o = k;
+        end
+
+        t = dels_scale(i) / temp.v;
+        F_lateral = cornering(temp,curv_scale(o),params);
+        F_brake = params.control.driver_skill * brake(F_lateral,state,params);
+        temp.v = temp.v - t * F_brake / params.M;
+        if temp.v > velocity_max(o) || abs(F_brake) < 1000
+            state.brake_flag = 1;
+            break
+        end
+        if temp.v < 1
+            state.brake_flag = 0;
+            break
+        end
+    end
+
+    if state.brake_flag == 1
+        state.RPM_motor = motor_rpm(state,params);
+        state.t = dels_scale(i) / state.v;
+        F_lateral = cornering(state,curv_scale(i),params);
+        F_brake = params.control.driver_skill * brake(F_lateral,state,params);
+        state.v = state.v - state.t * F_brake / params.M;
+        state.F = -F_brake;
+        state.grip_limited = 0;
+        state.T_motor = 0;   
+        state.Eff_motor = 1;
+        state.P_motor_drive = 0;
+        state.P_motor_draw = 0;
+        state.P_battery = 0; 
+        state.I_battery = state.P_battery / params.voltage;
+        state.E = state.P_battery * state.t;
+    else
+        state.RPM_motor = motor_rpm(state,params);
+        state.v = v_trial;
+        state.F = F_drive;
+        state.grip_limited = grip_limited;
+        state.T_motor = T_motor;
+        state.Eff_motor = efficiency;
+        state.P_motor_drive = state.T_motor * state.RPM_motor * pi / (30);
+        state.P_motor_draw = state.P_motor_drive / efficiency;
+        state.P_battery = state.P_motor_draw / (params.efficiency.inverter * params.efficiency.battery);
+        state.I_battery = state.P_battery / params.voltage;
+        state.E = state.P_battery * state.t;
+        
+    end
+
+    storage(i) = state;
+
+end
+
+
+% %DATA ANALYSIS
+v_data = vertcat(storage.v);
+t_lap = sum(vertcat(storage.t));
+E_lap = sum(vertcat(storage.E));
+E_endurance = E_lap * 22000 / lap_length;
+E_endurance_KWh = E_endurance / (3.6 * 10^6);
+% 
+% figure;
+% P_data = 10^-3 * vertcat(storage.P_battery);
+% P_rms = rms(P_data);
+% plot(P_data)
+% title("Battery Power Draw Over Lap")
+% xlabel("Lap Progression")
+% ylabel("Power from Battery / kW")
+% annotation('textbox', [0.65, 0.8, 0.1, 0.1], 'String', "RMS Power: "+P_rms+"kW")
+% yline(80, 'r:','LineWidth', 2);
+% ylim([0,120])
+% 
+% 
+% I_data = vertcat(storage.I_battery);
+% I_rms = rms(I_data);
+% 
+% figure;
+% plot(I_data,"magenta")
+% title("Battery Current Draw Over Lap")
+% xlabel("Lap Progression")
+% ylabel("Current / A")
+% annotation('textbox', [0.65, 0.8, 0.1, 0.1], 'String', "RMS Current: "+I_rms+"A")
+% 
+% figure;
+% plot(v_data)
+% hold on
+% TF = islocalmin(velocity_max);
+% plot(x,velocity_max,x(TF),velocity_max(TF),'r*')
+% xlabel("Lap Progression")
+% ylabel("Speed / ms^-1")
+% title("Vehicle Speed vs Max Cornering Speed")
+% legend("Vehicle Speed","Max Cornering Speed")
+% ylim([0,50])
+
+gear_times(f) = t_lap;
+gear_energy(f) = E_endurance_KWh;
+gear_it(f) = params.gratio;
+
+end
+
+xlabel("Gear reduction ratio")
+yyaxis left
+plot(gear_it,gear_times)
+ylabel("Endurance Event lap time (s)")
+
+yyaxis right
+plot(gear_it,gear_energy)
+ylabel("Endurance Event net energy (KWh)")
