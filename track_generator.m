@@ -4,12 +4,14 @@
 
 %function [dels,curv,track_length] = track_generator()
 
+close all
+clear
 
-halfwidth = 3; %track halfwidth, metres
+halfwidth = 1.5; %track halfwidth, metres
 carhalfwidth = halfwidth/1.5;
 L_max = carhalfwidth;
 L_min = -carhalfwidth;
-mat = loadsvg("add_nodes.svg",1,false); %TRACK INPUT
+mat = loadsvg("FSUK2025.svg",1,false); %TRACK INPUT
 track = zeros(length(mat{1,1})/2,3);
 track_length = 0;
 
@@ -247,5 +249,7 @@ plot(track2(:,11),track2(:,12),"black--")
 print -depsc endurancetrack
 
 curv = smooth(curv,10);
+
+save('curve.mat','curv', 'dels','track_length');
 
 %end

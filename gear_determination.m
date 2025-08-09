@@ -3,17 +3,19 @@
 %Lewis Blake
 
 
-clearvars -except curv dels track_length
+clearvars
 close all
 
+load('curve.mat','curv', 'dels','track_length');
+
 %CAR PARAMETERS
-params.M = 350; %kg
+params.M = 320; %kg
 params.M_dist = 0.5; %dist mass over front wheels
 %params.gratio = 3; %gear reduction ratio
 params.lat_mu = 1.3; %lateral tyre coeff. friction
 params.long_mu = 1.3; %longitudinal tyre coeff. friction
 params.tyre_dia = 16; %tyre diameter, inches
-params.voltage = 400; %battery voltage, iterative function to model sag to come
+params.voltage = 324; %battery voltage, iterative function to model sag to come
 
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"

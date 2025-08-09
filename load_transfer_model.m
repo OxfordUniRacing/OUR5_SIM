@@ -2,8 +2,10 @@
 %Basic point mass sim for determining battery spec
 %Lewis Blake
 
-clearvars -except curv dels track_length
+clearvars
 close all
+
+load('curve.mat','curv', 'dels','track_length');
 
 %CAR PARAMETERS
 params.M = 320; %kg
@@ -12,15 +14,13 @@ params.gratio = 4.5; %gear reduction ratio
 params.lat_mu = 1.3; %lateral tyre coeff. friction
 params.long_mu = 1.3; %longitudinal tyre coeff. friction
 params.tyre_dia = 16; %tyre diameter, inches
-params.voltage = 270; %battery voltage, iterative function to model sag to come
+params.voltage = 324; %battery voltage, iterative function to model sag to come
 params.COG_h = 0.3; %m
 params.wheelbase = 1.525; %m
 
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
 params.efficiency.mechanical = 0.95;
-params.efficiency.inverter = 0.95;
-params.efficiency.battery = 0.90;
 
 %CONTROL
 params.control.driver_skill = 0.95; %Driver skill factor (~0.5 to 1), acts as derate
@@ -165,10 +165,9 @@ for i = 1:length(curv_scale)
         state.Eff_motor = efficiency;
         state.P_motor_drive = state.T_motor * state.RPM_motor * pi / (30);
         state.P_motor_draw = state.P_motor_drive / efficiency;
-        state.P_battery = state.P_motor_draw / (params.efficiency.inverter * params.efficiency.battery);
+        state.P_battery = battery_power(state.P_motor_draw);
         state.I_battery = state.P_battery / params.voltage;
         state.E = state.P_battery * state.t;
-        
     end
 
     storage(i) = state;

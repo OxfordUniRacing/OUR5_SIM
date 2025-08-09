@@ -14,22 +14,70 @@
 
 function max_torque = max_torque(rpm)
     %peak
-    power_limit = 80;
+    power_limit = 80000;
+    pwr_tol = 100;
+    max_iterations = 50;
+    
 
-    if rpm < 3000
-        max_torque = 225;
+    persistent rpm_derate
+   
+    if(true)
+        rpm_min = 0;
+        rpm_max = 3100;
+    
+        for i = 1:max_iterations
+            rpm_mid = (rpm_min+rpm_max)/2;
+            eff = motor_efficiency(rpm_mid,250);
+    
+            pwr_est = rpm_mid * 250 * pi/30 / eff;
+            bat_pwr = battery_power(pwr_est);
+
+            if bat_pwr > power_limit
+                rpm_max = rpm_mid; % Update rpm_max for next iteration
+            elseif bat_pwr < power_limit - pwr_tol
+                rpm_min = rpm_mid; % Update rpm_min for next iteration
+            else
+                break
+            end
+        end
+        rpm_derate = rpm_mid;
     end
-    if rpm >= 3000
-        max_torque = power_limit * 0.95 * 0.9*9549.3 / rpm
-    end
-    if rpm > 8000
+
+    if rpm > 6100
         max_torque = 0;
+    elseif rpm < rpm_derate
+        max_torque = 250;
+    elseif rpm >= rpm_derate
+        % rpm * torque / 9549.3 / eff < power_limit
+            
+        torque_min = 0;
+        torque_max = 250;
+        
+        for i = 1:max_iterations
+            torque_mid = (torque_min + torque_max) / 2;
+    
+            eff = motor_efficiency(rpm,torque_mid);
+            if isnan(eff)
+                torque_max = torque_mid;
+            else
+                pwr_est = rpm * torque_mid * pi/30 / eff;
+                bat_pwr = battery_power(pwr_est);
+                
+                
+                if bat_pwr > power_limit
+                    torque_max = torque_mid;
+                elseif bat_pwr < power_limit - pwr_tol
+                    torque_min = torque_mid;
+                else
+                    break
+                end
+            end
+        end
+
+        if isnan(torque_mid)
+            keyboard();
+        end
+
+        max_torque = torque_mid;
     end
-    % %continuous
-    % if rpm < 6000
-    %     max_torque = 50;
-    % end
-    % if rpm >= 6000
-    %     max_torque = 50 - (rpm-6000)*(50-45)/(7000-6000);
-    % end
 end
