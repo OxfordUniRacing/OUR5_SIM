@@ -20,7 +20,7 @@ function battery_power = battery_power(motor_power)
 
     current = roots([a 0 b c]);
 
-    min_current = 0;
+    min_current = -40;
     max_current = 400;
 
     mask = current > min_current & current < max_current;

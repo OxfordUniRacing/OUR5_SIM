@@ -1,6 +1,7 @@
 %motor_efficiency.m
 
 function motor_efficiency = motor_efficiency(rpm,torque)
+    torque = abs(torque); % assume symetric motor efficiency map with torque
     persistent F
 
     if isempty(F)

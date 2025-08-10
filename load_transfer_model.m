@@ -14,9 +14,13 @@ params.gratio = 4.5; %gear reduction ratio
 params.lat_mu = 1.3; %lateral tyre coeff. friction
 params.long_mu = 1.3; %longitudinal tyre coeff. friction
 params.tyre_dia = 16; %tyre diameter, inches
-params.voltage = 324; %battery voltage, iterative function to model sag to come
 params.COG_h = 0.3; %m
 params.wheelbase = 1.525; %m
+
+% BATTERY PARAMETERS
+params.voltage = 324; %battery voltage, iterative function to model sag to come
+params.max_charge_Crate = 1; % max charging C-rate (typically 0.5-1 C)
+params.pack_Ah = 16; % battery pack Amp-hours
 
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
@@ -24,6 +28,7 @@ params.efficiency.mechanical = 0.95;
 
 %CONTROL
 params.control.driver_skill = 0.95; %Driver skill factor (~0.5 to 1), acts as derate
+params.control.regen = true; % toggle regen on or off
 
 %ENVIRONMENT
 g = 9.81;
@@ -87,8 +92,8 @@ function [F_drive, T_motor, efficiency, grip_limited] = drive(F_lateral,state,pa
     end
     RPM_motor = motor_rpm(state,params);
     T_motor_max = max_torque(RPM_motor);
-    T_wheel_max = T_motor_max * params.efficiency.mechanical;
-    F_wheel_max = T_wheel_max * params.gratio / (params.tyre_dia * 25.4 * 10^-3 / 2);
+    T_wheel_max = T_motor_max * params.gratio * params.efficiency.mechanical;
+    F_wheel_max = T_wheel_max / (params.tyre_dia * 25.4 * 10^-3 / 2);
 
     if F_drive_grip < F_wheel_max
         F_drive = F_drive_grip;
@@ -109,70 +114,90 @@ end
 
 %SIM
 for i = 1:length(curv_scale)
-    state.brake_flag = 0;
+    state.brake_flag = 0; 
 
-    state.t = dels_scale(i) / state.v;
-    state.Fz_drive = params.M*g*(1-params.M_dist) + state.F_long_load_transfer;
-    F_lateral = cornering(state,curv_scale(i),params);
-    [F_drive, T_motor, efficiency, grip_limited] = drive(F_lateral,state,params);
-    F_drive = F_drive * params.control.driver_skill;
-    T_motor = T_motor * params.control.driver_skill;
-    temp.v = state.v + state.t * F_drive / params.M;
-    v_trial = temp.v;
-
+    state.t = dels_scale(i) / state.v; % time taken to travel through the track segment
+    state.Fz_drive = params.M * g * (1-params.M_dist) + state.F_long_load_transfer; % vertical load on the driven wheels
+    F_lateral = cornering(state, curv_scale(i), params); % lateral load on the tyres
+    [F_drive, T_motor, Eff_motor, grip_limited] = drive(F_lateral,state,params); % drive function returns key variables for ideal drive 
+    F_drive = F_drive * params.control.driver_skill; % scale by driver skill fraction parameter
+    T_motor = T_motor * params.control.driver_skill; % scale by driver skill fraction parameter
+    
+    temp.v = state.v + state.t * F_drive / params.M; % temporary vehicle velocity
+    
+    v_trial = temp.v; 
+    % iterates through a forward looking lap of the track from the current segment plus an
+    % additional runover distance to check if the driver will lose control
+    % in a corner at the current speed. checks if the driver needs to start
+    % braking
     for k = i+1:length(curv_scale)+sim.runover
+        % if index exceeds track length loop back to the start of the track
         if k > length(curv_scale)
             o = k - length(curv_scale);
         else
             o = k;
         end
-
-        t = dels_scale(i) / temp.v;
-        F_lateral = cornering(temp,curv_scale(o),params);
-        F_brake = params.control.driver_skill * brake(F_lateral,state,params);
-        temp.v = temp.v - t * F_brake / params.M;
+        
+        t = dels_scale(o) / temp.v; % get time to complete the next track segment 
+        F_lateral = cornering(temp,curv_scale(o),params); % get the lateral force at the simulated segment of the forward looking simulation
+        F_brake = params.control.driver_skill * brake(F_lateral,state,params); %  get the max braking force
+        temp.v = temp.v - t * F_brake / params.M; % update temporary velocity using the maximum availible braking force
+        % if the temporary velocity is higher than max velocity at a given
+        % track segment (ie going too fast for the next corner) or the braking force availible is small (ie very high lateral loads) apply the brake flag
+        % break if this condition is true as there is no need to simulate
+        % beyond this point
         if temp.v > velocity_max(o) || abs(F_brake) < 1000
             state.brake_flag = 1;
             break
         end
+        % if the vehicle speed approaches zero remove the brake flag (ie it
+        % is too early for the vehicle to start braking) and break
         if temp.v < 1
             state.brake_flag = 0;
             break
         end
     end
-
+    
+    % if the driver needs to start braking to make the next corner
     if state.brake_flag == 1
-        state.RPM_motor = motor_rpm(state,params);
-        state.t = dels_scale(i) / state.v;
-        F_lateral = cornering(state,curv_scale(i),params);
-        F_brake = params.control.driver_skill * brake(F_lateral,state,params);
-        state.v = state.v - state.t * F_brake / params.M;
-        state.F = -F_brake;
-        state.grip_limited = 0;
-        state.T_motor = 0;   
-        state.Eff_motor = 1;
-        state.P_motor_drive = 0;
-        state.P_motor_draw = 0;
-        state.P_battery = 0; 
-        state.I_battery = state.P_battery / params.voltage;
-        state.E = state.P_battery * state.t;
+        state.RPM_motor = motor_rpm(state,params); % get motor speed
+        state.t = dels_scale(i) / state.v; % get time taken to complete lap segment
+        F_lateral = cornering(state,curv_scale(i),params); % get lateral force 
+        F_brake = params.control.driver_skill * brake(F_lateral,state,params); % get maximum braking force avaible (grip limited)
+        state.v = state.v - state.t * F_brake / params.M; % compute velocity assuming max braking force applied
+        state.F = -F_brake; % force on vehicle is equal to the braking force
+        state.grip_limited = 0; % during braking the vehicle is not grip limited
+        if params.control.regen
+            state.T_motor = regen_braking(state, params,F_brake); % get max availible braking torque from motor
+        else
+            state.T_motor = 0; 
+        end
+        state.P_motor_drive = state.T_motor * state.RPM_motor * pi / 30; % compute mechanical motor power
+        Eff_motor =  motor_efficiency(state.RPM_motor,state.T_motor); % calculate motor efficiency with regen torque
+        state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute electrical motor power
+        state.P_battery = battery_power(state.P_motor_draw); % get maximum battery power TODO include inverter efficiency 
+        state.I_battery = state.P_battery / params.voltage; % compute battery current TODO make pack voltage a funciton of SoC and cell resistance
+        state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
     else
-        state.RPM_motor = motor_rpm(state,params);
-        state.v = v_trial;
-        state.F = F_drive;
-        state.grip_limited = grip_limited;
-        state.T_motor = T_motor;
-        state.Eff_motor = efficiency;
-        state.P_motor_drive = state.T_motor * state.RPM_motor * pi / (30);
-        state.P_motor_draw = state.P_motor_drive / efficiency;
-        state.P_battery = battery_power(state.P_motor_draw);
-        state.I_battery = state.P_battery / params.voltage;
-        state.E = state.P_battery * state.t;
+        state.RPM_motor = motor_rpm(state,params); % get motor speed
+        state.v = v_trial; % braking not required so trial velocity is vehicle velocity
+        state.F = F_drive; % set vehicle force to driving force
+        state.grip_limited = grip_limited; % save if vehicle is grip limited or not during track segment
+        state.T_motor = T_motor; % save motor torque
+        state.Eff_motor = Eff_motor; % efficiency of trial drive power is the motor efficincy
+        state.P_motor_drive = state.T_motor * state.RPM_motor * pi / 30; % compute motor mechanical power
+        state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute motor electrical power 
+        state.P_battery = battery_power(state.P_motor_draw); % get battery power TODO include inverter efficiency 
+        state.I_battery = state.P_battery / params.voltage; % compute battery current TODO make pack voltage a funciton of SoC and cell resistance
+        state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
     end
+       
+    % battery model
+    state.battery_voltage = params.voltage; 
 
-    storage(i) = state;
+    storage(i) = state; % save state structure 
 
-    [state.F_long_load_transfer, state.a_long] = long_load_transfer(params,storage);
+    [state.F_long_load_transfer, state.a_long] = long_load_transfer(params,storage); % compute bicycle model for this segment
 
 end
 
