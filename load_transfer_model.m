@@ -98,9 +98,14 @@ end
 
 function F_brake = brake(F_lateral,state,params)
     F_brake = state.Fz * params.long_mu * sqrt(1-(F_lateral/(state.Fz*params.lat_mu)));
+    
     if abs(imag(F_brake)) > 0
         F_brake = 0;
     end
+    
+    F_brake = params.control.driver_skill * F_brake; %  get the max braking force
+    F_brake = (1 - params.control.driver_smoothness_alpha) * state.F + params.control.driver_smoothness_alpha * F_brake;% Smooth braking force
+    
 end
 
 function RPM_motor = motor_rpm(state,params)
@@ -121,13 +126,17 @@ function [F_drive, T_motor, efficiency, grip_limited] = drive(F_lateral,state,pa
 
     if F_drive_grip < F_wheel_max
         F_drive = F_drive_grip;
-        T_motor = F_drive * (params.tyre_dia * 25.4 * 10^-3 / 2) / (params.gratio * params.efficiency.mechanical);
+        F_drive = F_drive * params.control.driver_skill; %apply drive skill factor if grip limited (not required for getting to max torque limit)
         grip_limited = 1;
     else
         F_drive = F_wheel_max;
         T_motor = T_motor_max;
         grip_limited = 0;
     end
+    % smooth the driving force
+    F_drive = (1 - params.control.driver_smoothness_alpha) * state.F + params.control.driver_smoothness_alpha * F_drive;% Smooth driving force
+    % compute torque
+    T_motor = F_drive * (params.tyre_dia * 25.4 * 10^-3 / 2) / (params.gratio * params.efficiency.mechanical);
     efficiency = motor_efficiency(RPM_motor,T_motor);
 end
 
@@ -146,10 +155,11 @@ for lapN = 1:Num_Laps
         F_lateral = cornering(state,curv_scale(i),params);
         [F_drive, T_motor, efficiency, grip_limited] = drive(F_lateral,state,params);
         aero_force = 0.5 * params.air_density * (state.v^2) * params.Cd * params.frontal_area;
-        F_drive = F_drive * params.control.driver_skill - aero_force;
+
         T_motor = T_motor * params.control.driver_skill;
-        temp.v = state.v + state.t * F_drive / params.M;
-        v_trial = temp.v;
+
+        F_vehicle = F_drive - aero_force;
+        v_trial = state.v + state.t * F_vehicle / params.M;
     
         state.brake_flag = 0; 
     
@@ -158,10 +168,10 @@ for lapN = 1:Num_Laps
         state.Fz_drive = params.M * g * (1-params.M_dist) + state.F_long_load_transfer; % vertical load on the driven wheels
         F_lateral = cornering(state, curv_scale(i), params); % lateral load on the tyres
         [F_drive, T_motor, Eff_motor, grip_limited] = drive(F_lateral,state,params); % drive function returns key variables for ideal drive 
-        F_drive = F_drive * params.control.driver_skill; % scale by driver skill fraction parameter
-        F_drive = (1 - params.control.driver_smoothness_alpha) * state.F + params.control.driver_smoothness_alpha * F_drive;% Smooth driving force
-
-        T_motor = T_motor * params.control.driver_skill; % scale by driver skill fraction parameter
+   
+        F_vehicle = F_drive - aero_force;
+        temp = state;
+        temp.v = v_trial; 
         
         temp.v = state.v + state.t * F_drive / params.M; % temporary vehicle velocity
         temp.F = state.F;
@@ -180,10 +190,10 @@ for lapN = 1:Num_Laps
             
             t = dels_scale(o) / temp.v; % get time to complete the next track segment 
             F_lateral = cornering(temp,curv_scale(o),params); % get the lateral force at the simulated segment of the forward looking simulation
-            F_brake = params.control.driver_skill * brake(F_lateral,state,params); %  get the max braking force
-            F_brake = (1 - params.control.driver_smoothness_alpha) * temp.F + params.control.driver_smoothness_alpha * F_brake;% Smooth braking force
-            temp.v = temp.v - t * F_brake / params.M; % update temporary velocity using the maximum availible braking force
-            temp.F = F_brake;
+            F_brake = brake(F_lateral,temp,params); %  get the max braking  using the temp future state
+            F_vehicle = -F_brake - aero_force;
+            temp.v = temp.v + t * F_vehicle / params.M; % update temporary velocity using the maximum availible braking force
+            temp.F = -F_brake;
             % if the temporary velocity is higher than max velocity at a given
             % track segment (ie going too fast for the next corner) or the braking force availible is small (ie very high lateral loads) apply the brake flag
             % break if this condition is true as there is no need to simulate
@@ -205,9 +215,9 @@ for lapN = 1:Num_Laps
             state.RPM_motor = motor_rpm(state,params); % get motor speed
             state.t = dels_scale(i) / state.v; % get time taken to complete lap segment
             F_lateral = cornering(state,curv_scale(i),params); % get lateral force 
-            F_brake = params.control.driver_skill * brake(F_lateral,state,params); % get maximum braking force avaible (grip limited)
-            F_brake = (1 - params.control.driver_smoothness_alpha) * state.F + params.control.driver_smoothness_alpha * F_brake;% Smooth braking force
-            state.v = state.v - state.t * F_brake / params.M; % compute velocity assuming max braking force applied
+            F_brake = brake(F_lateral,state,params); % get maximum braking force avaible (grip limited)
+            F_vehicle = -F_brake - aero_force;
+            state.v = state.v + state.t * F_vehicle / params.M; % compute velocity assuming max braking force applied
             state.F = -F_brake; % force on vehicle is equal to the braking force
             state.grip_limited = 0; % during braking the vehicle is not grip limited
             if params.control.regen
@@ -224,7 +234,8 @@ for lapN = 1:Num_Laps
         else
             state.RPM_motor = motor_rpm(state,params); % get motor speed
             state.v = v_trial; % braking not required so trial velocity is vehicle velocity
-            state.F = F_drive; % set vehicle force to driving force
+            state.F = F_drive; % saved driving force is original driving force
+            state.F_veh = F_vehicle;
             state.grip_limited = grip_limited; % save if vehicle is grip limited or not during track segment
             state.T_motor = T_motor; % save motor torque
             state.Eff_motor = Eff_motor; % efficiency of trial drive power is the motor efficincy
@@ -288,4 +299,4 @@ title("Vehicle Speed vs Max Cornering Speed")
 legend("Vehicle Speed","Max Cornering Speed")
 ylim([0,50])
 
- 
+figure;
