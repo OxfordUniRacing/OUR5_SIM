@@ -4,8 +4,7 @@ function battery_power = battery_power(motor_power)
     % cells have internal resistance of 0.013 ohms
     % current split 5 ways
     % (V_pack - V_drop) * Current = motor_power
-    % (V_pack - R_cell * (current/5)^2) * Current = motor_power
-    % Cubic relation of form ax^3 + bx + c = 0
+    % (V_pack - R_cell * (current/5)) * Current = motor_power
     % a = R_cell/25
     % b = V_pack
     % c = - motor_power
@@ -18,7 +17,7 @@ function battery_power = battery_power(motor_power)
         keyboard();
     end
 
-    current = roots([a 0 b c]);
+    current = roots([ a b c]);
 
     min_current = 0;
     max_current = 400;

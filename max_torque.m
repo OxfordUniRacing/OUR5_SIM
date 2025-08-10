@@ -6,9 +6,7 @@
 %Max torque needs to be calculated off of max power with some efficiency
 %   losses
 
-% rpm * torque / 9549.3 = power in kW
-% if rpm < 3000, torque = 254Nm
-% if rpm > 3000, torque = 80 * 9549.3 / rpm
+% rpm * torque / 9549.3 = power in
 
 
 

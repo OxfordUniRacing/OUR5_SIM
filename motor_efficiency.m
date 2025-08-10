@@ -1,5 +1,7 @@
 %motor_efficiency.m
 
+% efficiency of motor + inverter
+
 function motor_efficiency = motor_efficiency(rpm,torque)
     persistent F
 
