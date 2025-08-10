@@ -19,8 +19,11 @@ params.wheelbase = 1.525; %m
 
 % BATTERY PARAMETERS
 params.voltage = 324; %battery voltage, iterative function to model sag to come
-params.max_charge_Crate = 1; % max charging C-rate (typically 0.5-1 C)
+params.max_charge_Crate = 2; % max charging C-rate
+params.max_discharge_Crate = 10; % max charging C-rate 
+params.battery.Np = 5; % number of cells in parallel in a cell group
 params.pack_Ah = 22.5; % battery pack Amp-hours
+params.cellR = 15e-3; % cell resistance 
 
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
@@ -91,7 +94,7 @@ function [F_drive, T_motor, efficiency, grip_limited] = drive(F_lateral,state,pa
         F_drive_grip = 0;
     end
     RPM_motor = motor_rpm(state,params);
-    T_motor_max = max_torque(RPM_motor);
+    T_motor_max = max_torque(RPM_motor, params);
     T_wheel_max = T_motor_max * params.gratio * params.efficiency.mechanical;
     F_wheel_max = T_wheel_max / (params.tyre_dia * 25.4 * 10^-3 / 2);
 
@@ -175,7 +178,7 @@ for i = 1:length(curv_scale)
         state.P_motor_drive = state.T_motor * state.RPM_motor * pi / 30; % compute mechanical motor power
         Eff_motor =  motor_efficiency(state.RPM_motor,state.T_motor); % calculate motor efficiency with regen torque
         state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute electrical motor power
-        state.P_battery = battery_power(state.P_motor_draw); % get maximum battery power TODO include inverter efficiency 
+        state.P_battery = battery_power(state.P_motor_draw,params); % get maximum battery power TODO include inverter efficiency 
         state.I_battery = state.P_battery / params.voltage; % compute battery current TODO make pack voltage a funciton of SoC and cell resistance
         state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
     else
@@ -187,7 +190,7 @@ for i = 1:length(curv_scale)
         state.Eff_motor = Eff_motor; % efficiency of trial drive power is the motor efficincy
         state.P_motor_drive = state.T_motor * state.RPM_motor * pi / 30; % compute motor mechanical power
         state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute motor electrical power 
-        state.P_battery = battery_power(state.P_motor_draw); % get battery power TODO include inverter efficiency 
+        state.P_battery = battery_power(state.P_motor_draw, params); % get battery power TODO include inverter efficiency 
         state.I_battery = state.P_battery / params.voltage; % compute battery current TODO make pack voltage a funciton of SoC and cell resistance
         state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
     end
