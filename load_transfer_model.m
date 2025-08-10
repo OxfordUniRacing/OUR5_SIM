@@ -20,7 +20,7 @@ params.wheelbase = 1.525; %m
 % BATTERY PARAMETERS
 params.voltage = 324; %battery voltage, iterative function to model sag to come
 params.max_charge_Crate = 1; % max charging C-rate (typically 0.5-1 C)
-params.pack_Ah = 16; % battery pack Amp-hours
+params.pack_Ah = 22.5; % battery pack Amp-hours
 
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
