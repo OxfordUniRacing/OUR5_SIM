@@ -1,18 +1,11 @@
-%max_torque.m
-%Lewis Blake
+%max_regen_torque.m
+% Jack Bruford
 
-% Max motor torque calculation
+% Max regen motor torque calculation
 
-%Max torque needs to be calculated off of max power with some efficiency
-%   losses
-
-% rpm * torque / 9549.3 = power in
-
-
-
-function max_torque = max_torque(rpm,params)
+function max_regen_torque = max_regen_torque(rpm,params)
     %peak
-    power_limit = 80000;
+    power_limit = params.voltage * params.max_charge_Crate * params.pack_Ah;
     pwr_tol = 100;
     max_iterations = 50;
     
@@ -78,4 +71,6 @@ function max_torque = max_torque(rpm,params)
 
         max_torque = torque_mid;
     end
+
+    max_regen_torque = -max_torque;
 end
