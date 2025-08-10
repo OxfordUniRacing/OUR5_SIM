@@ -39,15 +39,21 @@ params.efficiency.mechanical = 0.95;
 
 %CONTROL
 params.control.driver_skill = 0.95; %Driver skill factor (~0.5 to 1), acts as derate
+params.control.driver_smoothness_alpha = 1; % smoothing factor, 0 = slow change, 1 = instant change
+
 params.control.regen = true; % toggle regen on or off
 
 %ENVIRONMENT
 g = 9.81;
 
 %TRACK PARAMETERS
-lap_length = 1000; %m
+endurance_length = 22e3;
+num_laps_endurance = 27;
+lap_length = endurance_length/num_laps_endurance; %m
 corner_min_rad = 5; %m
-Num_Laps = 22;
+
+Num_Laps = 1; % number of simulated laps
+
 
 %TRACK SCALING
 curv_scale_val = (1/corner_min_rad) / abs(max(abs(curv))); %min hairpin radius of Xm
@@ -133,7 +139,6 @@ end
 %SIM
 for lapN = 1:Num_Laps
     for i = 1:length(curv_scale)
-    
         state.brake_flag = 0;
     
         state.t = dels_scale(i) / state.v;
@@ -154,10 +159,12 @@ for lapN = 1:Num_Laps
         F_lateral = cornering(state, curv_scale(i), params); % lateral load on the tyres
         [F_drive, T_motor, Eff_motor, grip_limited] = drive(F_lateral,state,params); % drive function returns key variables for ideal drive 
         F_drive = F_drive * params.control.driver_skill; % scale by driver skill fraction parameter
+        F_drive = (1 - params.control.driver_smoothness_alpha) * state.F + params.control.driver_smoothness_alpha * F_drive;% Smooth driving force
+
         T_motor = T_motor * params.control.driver_skill; % scale by driver skill fraction parameter
         
         temp.v = state.v + state.t * F_drive / params.M; % temporary vehicle velocity
-        
+        temp.F = state.F;
         v_trial = temp.v; 
         % iterates through a forward looking lap of the track from the current segment plus an
         % additional runover distance to check if the driver will lose control
@@ -174,7 +181,9 @@ for lapN = 1:Num_Laps
             t = dels_scale(o) / temp.v; % get time to complete the next track segment 
             F_lateral = cornering(temp,curv_scale(o),params); % get the lateral force at the simulated segment of the forward looking simulation
             F_brake = params.control.driver_skill * brake(F_lateral,state,params); %  get the max braking force
+            F_brake = (1 - params.control.driver_smoothness_alpha) * temp.F + params.control.driver_smoothness_alpha * F_brake;% Smooth braking force
             temp.v = temp.v - t * F_brake / params.M; % update temporary velocity using the maximum availible braking force
+            temp.F = F_brake;
             % if the temporary velocity is higher than max velocity at a given
             % track segment (ie going too fast for the next corner) or the braking force availible is small (ie very high lateral loads) apply the brake flag
             % break if this condition is true as there is no need to simulate
@@ -197,6 +206,7 @@ for lapN = 1:Num_Laps
             state.t = dels_scale(i) / state.v; % get time taken to complete lap segment
             F_lateral = cornering(state,curv_scale(i),params); % get lateral force 
             F_brake = params.control.driver_skill * brake(F_lateral,state,params); % get maximum braking force avaible (grip limited)
+            F_brake = (1 - params.control.driver_smoothness_alpha) * state.F + params.control.driver_smoothness_alpha * F_brake;% Smooth braking force
             state.v = state.v - state.t * F_brake / params.M; % compute velocity assuming max braking force applied
             state.F = -F_brake; % force on vehicle is equal to the braking force
             state.grip_limited = 0; % during braking the vehicle is not grip limited
@@ -229,11 +239,10 @@ for lapN = 1:Num_Laps
         % battery model
         state.SoC = update_SoC(params,state);
         state.battery_voltage = pack_voltage(params,state); 
-    
         storage((lapN-1)*length(curv_scale) + i) = state; % save state structure 
     
         [state.F_long_load_transfer, state.a_long] = long_load_transfer(params,storage); % compute bicycle model for this segment
-    
+
     end
 end
 
