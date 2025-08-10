@@ -10,7 +10,7 @@
 
 
 
-function max_torque = max_torque(rpm,params)
+function max_torque = max_torque(rpm,params,state)
     %peak
     power_limit = 80000;
     pwr_tol = 100;
@@ -28,7 +28,7 @@ function max_torque = max_torque(rpm,params)
             eff = motor_efficiency(rpm_mid,250);
     
             pwr_est = rpm_mid * 250 * pi/30 / eff;
-            bat_pwr = battery_power(pwr_est,params);
+            bat_pwr = battery_power(pwr_est,params,state);
 
             if bat_pwr > power_limit
                 rpm_max = rpm_mid; % Update rpm_max for next iteration
@@ -59,7 +59,7 @@ function max_torque = max_torque(rpm,params)
                 torque_max = torque_mid;
             else
                 pwr_est = rpm * torque_mid * pi/30 / eff;
-                bat_pwr = battery_power(pwr_est,params);
+                bat_pwr = battery_power(pwr_est,params,state);
                 
                 
                 if bat_pwr > power_limit
