@@ -24,7 +24,7 @@ params.frontal_area = 1.2; %m^2
 params.air_density = 1.225; 
 
 % BATTERY PARAMETERS
-params.max_charge_Crate = 3; % max charging C-rate
+params.max_charge_Crate = 1; % max charging C-rate
 params.max_discharge_Crate = 10; % max charging C-rate 
 params.battery.Np = 5; % number of cells in parallel in a cell group
 params.cell_Ah = 4.5; % battery pack Amp-hours
@@ -34,7 +34,7 @@ params.cellV = 4.2;
 params.battery.Ns = 90;
 params.battery.cell_specific_heat = 830; % 830 typical for a NCA cell, 1040 would be typical for NMC
 params.battery.cell_mass = 70e-3; % from molicell datasheet, 70g
-
+params.battery.cellRth = 10;
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
 params.efficiency.mechanical = 0.92;
@@ -42,12 +42,12 @@ params.efficiency.mechanical = 0.92;
 %CONTROL
 params.control.driver_skill = 0.8; %Driver skill factor (~0.5 to 1), acts as derate
 params.control.driver_smoothness_alpha = 0.95; % smoothing factor, 0 = slow change, 1 = instant change
-
+params.control.max_power = 80e3;
 params.control.regen = true; % toggle regen on or off
 
 %ENVIRONMENT
 g = 9.81;
-ambeint_temperature = 25;
+params.ambient_temperature = 25;
 
 %TRACK PARAMETERS
 endurance_length = 22e3;
@@ -55,7 +55,7 @@ num_laps_endurance = 27;
 lap_length = endurance_length/num_laps_endurance; %m
 corner_min_rad = 5; %m
 
-Num_Laps = 27; % number of simulated laps
+Num_Laps = 27; % number of simulated laps (27 laps in endurance)
 
 
 %TRACK SCALING
@@ -75,7 +75,7 @@ state.SoC = 1; % Pack state of charge as a fraction
 state.battery_voltage = pack_voltage(params,state);
 state.brake_flag = 0;
 state.brake_index = 0;
-state.cell_temperature = ambeint_temperature;
+state.cell_temperature = params.ambient_temperature;
 
 %storage(1) = state;
 
@@ -268,6 +268,7 @@ for lapN = 1:Num_Laps
         state.SoC = update_SoC(params,state);
         state.battery_voltage = pack_voltage(params,state); 
         state.cell_temperature = cell_temperature(params,state); 
+        state.cell_losses = cell_losses(params,state);
         storage((lapN-1)*length(curv_scale) + i) = state; % save state structure 
     
         [state.F_long_load_transfer, state.a_long] = long_load_transfer(params,storage); % compute bicycle model for this segment

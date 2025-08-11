@@ -12,7 +12,7 @@
 
 function max_torque = max_torque(rpm,params,state)
     %peak
-    power_limit = 80000;
+    power_limit = params.control.max_power;
     pwr_tol = 100;
     max_iterations = 50;
     
