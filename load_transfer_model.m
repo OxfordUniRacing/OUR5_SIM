@@ -32,6 +32,8 @@ params.pack_Ah = params.cell_Ah * params.battery.Np; % battery pack Amp-hours
 params.cellR = 15e-3; % cell resistance 
 params.cellV = 2.4;
 params.battery.Ns = 90;
+params.battery.cell_specific_heat = 830; % 830 typical for a NCA cell, 1040 would be typical for NMC
+params.battery.cell_mass = 70e-3; % from molicell datasheet, 70g
 
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
@@ -45,6 +47,7 @@ params.control.regen = true; % toggle regen on or off
 
 %ENVIRONMENT
 g = 9.81;
+ambeint_temperature = 25;
 
 %TRACK PARAMETERS
 endurance_length = 22e3;
@@ -72,6 +75,7 @@ state.SoC = 1; % Pack state of charge as a fraction
 state.battery_voltage = pack_voltage(params,state);
 state.brake_flag = 0;
 state.brake_index = 0;
+state.cell_temperature = ambeint_temperature;
 
 %storage(1) = state;
 
@@ -263,7 +267,7 @@ for lapN = 1:Num_Laps
         % battery model
         state.SoC = update_SoC(params,state);
         state.battery_voltage = pack_voltage(params,state); 
-
+        state.cell_temperature = cell_temperature(params,state); 
         storage((lapN-1)*length(curv_scale) + i) = state; % save state structure 
     
         [state.F_long_load_transfer, state.a_long] = long_load_transfer(params,storage); % compute bicycle model for this segment
@@ -322,4 +326,9 @@ ylabel("SoC (%)")
 yyaxis right
 plot(t_data,vertcat(storage.battery_voltage))
 ylabel("Pack OCV (V)")
+xlabel("Time (s)")
+
+figure
+plot(t_data,vertcat(storage.cell_temperature))
+ylabel("Cell Temperature (°C)")
 xlabel("Time (s)")
