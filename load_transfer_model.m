@@ -9,7 +9,7 @@ load('curve.mat','curv', 'dels','track_length');
 
 %CAR PARAMETERS
 params.M = 320; %kg
-params.M_dist = 0.5; %dist mass over front wheels
+params.M_dist = 0.5; %distribution mass over front wheels
 params.gratio = 4.5; %gear reduction ratio
 params.lat_mu = 1.5; %lateral tyre coeff. friction
 params.long_mu = 1.3; %longitudinal tyre coeff. friction
@@ -30,14 +30,14 @@ params.battery.Np = 5; % number of cells in parallel in a cell group
 params.cell_Ah = 4.5; % battery pack Amp-hours
 params.pack_Ah = params.cell_Ah * params.battery.Np; % battery pack Amp-hours
 params.cellR = 15e-3; % cell resistance 
-params.cellV = 2.4;
+params.cellV = 4.2;
 params.battery.Ns = 90;
 params.battery.cell_specific_heat = 830; % 830 typical for a NCA cell, 1040 would be typical for NMC
 params.battery.cell_mass = 70e-3; % from molicell datasheet, 70g
 
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
-params.efficiency.mechanical = 0.95;
+params.efficiency.mechanical = 0.92;
 
 %CONTROL
 params.control.driver_skill = 0.8; %Driver skill factor (~0.5 to 1), acts as derate
@@ -277,7 +277,7 @@ end
 
 %DATA ANALYSIS
 v_data = vertcat(storage.v);
-t_lap = sum(vertcat(storage.t)) / Num_Laps;
+t_lap = sum(vertcat(storage.t)) / Num_Laps
 E_endurance = sum(vertcat(storage.E));
 E_lap = E_endurance / Num_Laps;
 E_endurance_KWh = E_endurance / (3.6 * 10^6)
