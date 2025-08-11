@@ -52,7 +52,7 @@ num_laps_endurance = 27;
 lap_length = endurance_length/num_laps_endurance; %m
 corner_min_rad = 5; %m
 
-Num_Laps = 1; % number of simulated laps
+Num_Laps = 27; % number of simulated laps
 
 
 %TRACK SCALING
@@ -191,7 +191,7 @@ for lapN = 1:Num_Laps
                 end
                 
                 temp.RPM_motor = motor_rpm(temp,params); % get motor speed
-                temp.t = dels_scale(i) / temp.v; % get time taken to complete lap segment
+                temp.t = dels_scale(o) / temp.v; % get time taken to complete lap segment
                 F_lateral = cornering(temp,curv_scale(o),params); % get the lateral force at the simulated segment of the forward looking simulation
                 F_brake = brake(F_lateral,temp,params); %  get the max braking  using the temp future state
                 F_aero = aero_force(temp,params);
