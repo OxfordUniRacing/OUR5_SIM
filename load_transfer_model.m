@@ -278,6 +278,8 @@ E_endurance = sum(vertcat(storage.E));
 E_lap = E_endurance / Num_Laps;
 E_endurance_KWh = E_endurance / (3.6 * 10^6)
 
+t_data = cumsum(vertcat(storage.t));
+
 figure;
 P_data = 10^-3 * vertcat(storage.P_battery);
 P_rms = rms(P_data);
@@ -314,4 +316,10 @@ legend("Vehicle Speed","Max Cornering Speed")
 ylim([0,50])
 
 figure
-plot(vertcat(storage.F))
+yyaxis left
+plot(t_data,vertcat(storage.SoC)*100)
+ylabel("SoC (%)")
+yyaxis right
+plot(t_data,vertcat(storage.battery_voltage))
+ylabel("Pack OCV (V)")
+xlabel("Time (s)")
