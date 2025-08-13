@@ -1,4 +1,4 @@
-numU = 4;               % number of U-shaped sheets
+numU = 5;               % number of U-shaped sheets
 Nrows = 4;              % heater rows per U on each inside face
 pack_length = 1;     % depth into page (m) - used for heat dissipation/generation
 cell_diameter = 22e-3;
@@ -20,6 +20,10 @@ pitch = 2*(a + wall_thk) + 5e-3;  % adjust gap between Us here
 contact_thk = 3e-4;     % heater/contact layer thickness (m)
 heater_height = cell_diameter; % fraction of row spacing used by heater rectangle height
 
+% fin parameters 
+Nfins      = 20;       % number of fins
+fin_thk    = 2e-3;    % thickness [m]
+fin_h      = 5e-3;   % height [m]
 
 % heat input
 
@@ -31,7 +35,7 @@ heatflux_cell = heat_cell * n_cell_module / Nrows / 2 / heater_height / pack_len
 A = heater_height*pack_length*Nrows*2*numU;
 Q = A*heatflux_cell;
 
-htc = flatPlateAirHTC(15,pack_length)
+htc = flatPlateAirHTC(15,pack_length);
 % ------------------------------------- 
 
 % compute U centers along x
@@ -95,6 +99,25 @@ for ui = 1:numU
     end
 end
 
+% base plate fins
+if Nfins > 0
+    fin_spacing = (xmax - xmin - Nfins * fin_thk) / (Nfins + 1);  % gap between fins
+    
+    for fi = 1:Nfins
+        % X coordinates for this fin
+        x1 = xmin + fi * fin_spacing + (fi-1) * fin_thk;
+        x2 = x1 + fin_thk;
+        % Y coordinates (below the baseplate)
+        y1 = -base_thk - fin_h;
+        y2 = -base_thk;
+    
+        % Rectangle column for this fin
+        R = [3; 4; x1; x2; x2; x1; y1; y1; y2; y2];
+        gd(:, end+1) = R;
+        idx = idx + 1;
+        names{end+1} = sprintf('fin_%d', fi);
+    end
+end
 % build decsg name arrays & set formula
 ns = char(names)';           % rows -> names, transpose to match decsg expectation
 sf = names{1};
@@ -138,14 +161,48 @@ thermalProperties(model, 'Face', ct_faces, ...
     'SpecificHeat', specific_heat_IIM);
 
 %%%%% APPPLY BOUNDARY CONDITIONS
-%find the shape index of the baseplate
-baseplateIdx = find(strcmp(names, 'baseplate'));
-% Find edge numbers for the baseplate
-edgesForBaseplate = faceEdges(model.Geometry,baseplateIdx);
-% Bottom edge is always the first edge in the rectangle
-freeEdge = edgesForBaseplate(1);
+cooledEdgesCoords = []; % 2 x N array
+
+if Nfins>0
+    % Get all X edges along bottom of baseplate (between xmin and xmax)
+    % Start at xmin, then step through fins and gaps
+    x_start = xmin;
+    y_bottombase = -base_thk;  % y coordinate for bottom of baseplate
+    y_midfin = -base_thk - fin_h/2;
+    y_endfin = -base_thk - fin_h;
+    for fi = 1:Nfins+1
+        if fi <= Nfins
+            % Current gap ends at start of a fin
+            x_end = xmin + fi * fin_spacing + (fi-1) * fin_thk;
+        else
+            % After last fin
+            x_end = xmax;
+        end
+        
+        % Midpoint of this gap segment
+        xm = (x_start + x_end) / 2;
+        cooledEdgesCoords(end+1,:) = [xm; y_bottombase];
+   
+        % Advance x_start to end of fin if not last gap
+        if fi <= Nfins
+            % Midpoint of fin to bottom edge
+            x_start_fin = xmin + fi * fin_spacing + (fi-1) * fin_thk;
+            x_end_fin = xmin + fi * fin_spacing + fi * fin_thk;
+            xm = (x_end_fin + x_start_fin) / 2;
+            cooledEdgesCoords(end+1,:) = [xm; y_endfin];
+             % left and right edge of fin
+            x_start_fin = xmin + fi * fin_spacing + (fi-1) * fin_thk;
+            cooledEdgesCoords(end+1,:) = [x_start_fin; y_midfin];
+            cooledEdgesCoords(end+1,:) = [x_start_fin + fin_thk; y_midfin];
+            x_start = x_end + fin_thk; % skip over fin thickness
+        end
+    end
+else
+    cooledEdgesCoords = [(xmin + xmax)/2, -base_thk];
+end
+freeEdges = nearestEdge(model.Geometry,cooledEdgesCoords);
 % Convection on underside
-thermalBC(model,'edge',freeEdge,...
+thermalBC(model,'edge',freeEdges,...
           'ConvectionCoefficient',htc,...
           'AmbientTemperature',25);
 
@@ -164,11 +221,11 @@ for ui = 1:numU
 
         % left inner face heater
         x_l = xc - a + contact_thk;
-        heatedMidpoints(:, end+1) = [x_l, (y1+y2)/2];
+        heatedMidpoints(end+1,:) = [x_l, (y1+y2)/2];
 
         % right inner face heater
         x_r = xc + a - contact_thk; 
-        heatedMidpoints(:, end+1) = [x_r, (y1+y2)/2];
+        heatedMidpoints(end+1,:) = [x_r, (y1+y2)/2];
     end
 end
 heaterEdges = nearestEdge(model.Geometry,heatedMidpoints);
@@ -180,7 +237,9 @@ thermalBC(model, 'edge', heaterEdges, 'HeatFlux', heatflux_cell);
 generateMesh(model,"Hmax",0.5e-3)
 result = solve(model);
 
+figure
 pdeplot(model,'XYData',result.Temperature,'ColorMap','jet');
 xlabel("dimensions (m)")
+% axis equal 
 c = colorbar;
 c.Label.String = 'Temperature (°C)';
