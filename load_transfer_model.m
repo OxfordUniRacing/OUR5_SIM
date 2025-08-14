@@ -7,6 +7,8 @@ close all
 
 load('curve.mat','curv', 'dels','track_length');
 
+addpath("./thermalModel")
+
 %CAR PARAMETERS
 params.M = 320; %kg
 params.M_dist = 0.5; %distribution mass over front wheels
@@ -333,3 +335,40 @@ figure
 plot(t_data,vertcat(storage.cell_temperature))
 ylabel("Cell Temperature (°C)")
 xlabel("Time (s)")
+
+%% thermal sim
+T_init = params.ambient_temperature;
+heat_cell = I_data * params.cellR / params.battery.Np;
+animation_t = min(t_data):5:max(t_data);
+[result, model] = thermal_model_2D_transient_profile(T_init,t_data,heat_cell,v_data,animation_t);
+
+%% Plot at a specific time index (e.g., t = 600 s)
+k = length(unique(t_data));   
+figure
+pdeplot(model,'XYData',result.Temperature(:,k),'ColorMap','jet');
+xlabel("dimensions (m)")
+c = colorbar; c.Label.String = 'Temperature (°C)';
+title(sprintf('Temperature at t = %.1f s', t_data(k)));
+
+% Create animated GIF
+gifFile = 'thermal_animation.gif';
+
+for k = 1:length(animation_t)
+    [~, kt] = min(abs(unique(t_data) - animation_t(k)));
+    pdeplot(model,'XYData',result.Temperature(:,kt),'ColorMap','jet');
+    caxis([T_init ceil(max(max(result.Temperature))/10)*10])
+    c = colorbar; c.Label.String = 'Temperature (°C)';
+    title(sprintf('Temperature at t = %.2f s',t_data(kt)));
+    drawnow
+
+    % Capture the frame as an image
+    frame = getframe(gcf);
+    im = frame2im(frame);
+    [A,map] = rgb2ind(im,256);
+
+    if k == 1
+        imwrite(A,map,gifFile,'gif','LoopCount',Inf,'DelayTime',0.5);
+    else
+        imwrite(A,map,gifFile,'gif','WriteMode','append','DelayTime',0.5);
+    end
+end
