@@ -16,10 +16,10 @@ function h = flatPlateAirHTC(v, L)
     % --- Nusselt number ---
     if ReL <= 5e5
         % Laminar
-        NuL = 0.664 * ReL^0.5 * Pr^(1/3);
+        NuL = 0.664 .* ReL.^0.5 .* Pr.^(1/3);
     else
         % Turbulent
-        NuL = 0.037 * ReL^(4/5) * Pr^(1/3);
+        NuL = 0.037 .* ReL.^(4/5) .* Pr.^(1/3);
     end
 
     % --- Heat transfer coefficient ---
