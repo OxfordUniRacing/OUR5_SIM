@@ -338,27 +338,34 @@ xlabel("Time (s)")
 
 %% thermal sim
 T_init = params.ambient_temperature;
-heat_cell = I_data * params.cellR / params.battery.Np;
-animation_t = min(t_data):5:max(t_data);
-[result, model] = thermal_model_2D_transient_profile(T_init,t_data,heat_cell,v_data,animation_t);
+heat_cell = (I_data / params.battery.Np).^2 * params.cellR ;
+animation_t = [t_data(1:length(curv_scale):end); t_data(end)];
+
+% simulation that computes temp profile at end of each lap using an
+% averaged heat flux and average car velocity
+[T_animations, model] = thermal_model_2D_transient(T_init,animation_t,mean(heat_cell),mean(v_data));
+
+% simulation that uses the profile to update at the model at every time
+% point
+% [T_animations, model] = thermal_model_2D_transient_profile(T_init,t_data,heat_cell,v_data,animation_t);
+
 
 %% Plot at a specific time index (e.g., t = 600 s)
-k = length(unique(t_data));   
+k = length(animation_t)-1;   
 figure
-pdeplot(model,'XYData',result.Temperature(:,k),'ColorMap','jet');
+pdeplot(model,'XYData',T_animations(:,end),'ColorMap','jet');
 xlabel("dimensions (m)")
 c = colorbar; c.Label.String = 'Temperature (°C)';
 title(sprintf('Temperature at t = %.1f s', t_data(k)));
 
 % Create animated GIF
 gifFile = 'thermal_animation.gif';
-
-for k = 1:length(animation_t)
-    [~, kt] = min(abs(unique(t_data) - animation_t(k)));
-    pdeplot(model,'XYData',result.Temperature(:,kt),'ColorMap','jet');
-    caxis([T_init ceil(max(max(result.Temperature))/10)*10])
+cbar_interval = 1;
+for k = 1:length(animation_t)-1
+    pdeplot(model,'XYData',T_animations(:,k),'ColorMap','jet');
+    caxis([T_init ceil(max(max(T_animations))/cbar_interval)*cbar_interval])
     c = colorbar; c.Label.String = 'Temperature (°C)';
-    title(sprintf('Temperature at t = %.2f s',t_data(kt)));
+    title(sprintf('Temperature at t = %.2f s',animation_t(k+1)));
     drawnow
 
     % Capture the frame as an image

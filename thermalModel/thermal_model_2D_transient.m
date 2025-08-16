@@ -1,3 +1,4 @@
+function [T, model] = thermal_model_2D_transient(T_init,t,heat_cell,car_velocity)
 %% 1) Make the model transient (instead of 'steadystate')
 model = createpde('thermal','transient');
 
@@ -42,7 +43,7 @@ thermalIC(model, T_init);
 [freeEdges, heaterEdges] = getBCedges(model,ig);
 
 % Convection on underside
-htc = flatPlateAirHTC(car_v,ig.pack_length);
+htc = flatPlateAirHTC(car_velocity,ig.pack_length);
 thermalBC(model,'edge',freeEdges,...
           'ConvectionCoefficient',htc,...
           'AmbientTemperature',25);
@@ -50,7 +51,7 @@ thermalBC(model,'edge',freeEdges,...
 % appply heatflux on edges
 heatflux_cell = heat_cell * ig.n_cell_module / ig.Nrows / 2 / ig.heater_height / ig.pack_length; % half heatflux as assumed equal comming out either end
 A = ig.heater_height*ig.pack_length*ig.Nrows*2*ig.numU;
-Q = A*heatflux_cell
+Q = A*heatflux_cell;
 thermalBC(model, 'edge', heaterEdges, 'HeatFlux', heatflux_cell);
 % --- OR ---
 % (B) Time-dependent example: step from 0 to heatflux_cell at t = 60 s
@@ -62,35 +63,7 @@ generateMesh(model,"Hmax",0.5e-3);
 
 %% 7) Time vector and solve
 % Choose times you want results at (e.g., 0 to 3600 s every 1 s)
-tlist = 0:10:1800;  % [s]
-result = solve(model, tlist);
 
-%% 8) Plot at a specific time index (e.g., t = 600 s)
-k = find(tlist==600,1);   % or k = 601 if you know the index
-figure
-pdeplot(model,'XYData',result.Temperature(:,k),'ColorMap','jet');
-xlabel("dimensions (m)")
-c = colorbar; c.Label.String = 'Temperature (°C)';
-title(sprintf('Temperature at t = %.1f s', tlist(k)));
+result = solve(model, t);
+T = result.Temperature;
 
-%% 9) Create animated GIF
-gifFile = 'thermal_animation.gif';
-
-for k = 1:10:length(tlist)
-    pdeplot(model,'XYData',result.Temperature(:,k),'ColorMap','jet');
-    caxis([T_init ceil(max(max(result.Temperature))/10)*10])
-    colorbar
-    title(sprintf('Temperature at t = %.2f s',tlist(k)));
-    drawnow
-
-    % Capture the frame as an image
-    frame = getframe(gcf);
-    im = frame2im(frame);
-    [A,map] = rgb2ind(im,256);
-
-    if k == 1
-        imwrite(A,map,gifFile,'gif','LoopCount',Inf,'DelayTime',0.5);
-    else
-        imwrite(A,map,gifFile,'gif','WriteMode','append','DelayTime',0.5);
-    end
-end
