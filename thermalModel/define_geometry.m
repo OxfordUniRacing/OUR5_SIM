@@ -2,8 +2,8 @@ function [dl,bt,sf,ig,names] = define_geometry()
 
 % --- Geometry parameters in a struct ---
 ig.numU          = 5;               % number of U-shaped sheets
-ig.Nrows         = 4;               % heater rows per U on each inside face
-ig.pack_length   = 1;               % depth into page (m)
+ig.Nrows         = 5;               % heater rows per U on each inside face
+ig.pack_length   = 0.5;             % module depth into page (m)
 ig.cell_diameter = 22e-3;           % cell diameter (m)
 ig.cell_length   = 70.15e-3;        % cell length (m)
 ig.n_cell_module = 18*5;
