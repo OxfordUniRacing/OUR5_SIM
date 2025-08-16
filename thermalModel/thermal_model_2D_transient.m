@@ -11,36 +11,51 @@ axis equal
 title('Geometry');
 
 
-%% 2) Material properties (you already provide rho & Cp — required for transient)
-condutivity_aluminium = 237;
-density_aluminium = 2700;
-specific_heat_alumiunium = 900;
+    %% 2) Material properties (you already provide rho & Cp — required for transient)
+    conductivity_aluminium = 237;
+    density_aluminium = 2700;
+    specific_heat_aluminium = 900;
+    
+    conductivity_TIM = 10;
+    density_TIM = 500;
+    specific_heat_TIM = 100;
+    
+    cell_volume = (ig.cell_diameter^2/4)/ig.cell_length;
+    cell_region_volume = ig.cell_diameter * ig.cell_length * ig.pack_length;
+    conductivity_cell        = 10;     % example – depends on cell design
+    density_cell             = 0.07 / cell_volume;   % cells weight 70g accoroding to molicel datasheet
+    specific_heat_cell       = 1000;   % J/kg-K (approx, varies with chemistry)
+    region_scaling_factor    = (cell_volume * ig.n_cell_module / ig.Nrows) / cell_region_volume; % the region assigned to cells is cuboidic but the cells dont fill the full volume obviosuly
+    conductivity_cellregion  =  conductivity_cell * region_scaling_factor;
+    density_cellregion       =  density_cell * region_scaling_factor;
+    specific_heat_cellregion = specific_heat_cell * region_scaling_factor;
+    % find faces
+    al_faces   = find(~contains(names,'thermal') & ~contains(names,'cell')); % everything else
+    ct_faces   = find(contains(names,'thermal'));
+    cell_faces = find(contains(names,'cell'));
 
-condutivity_TIM = 10;
-density_TIM = 500;
-specific_heat_IIM = 100;
-
-%find faces
-al_faces = find(~contains(names,'thermal'));
-ct_faces = find(contains(names,'thermal'));
-
-%apply materials
+    % apply materials
 thermalProperties(model, 'Face', al_faces, ...
-    'ThermalConductivity', condutivity_aluminium, ...
+    'ThermalConductivity', conductivity_aluminium, ...
     'MassDensity', density_aluminium, ...
-    'SpecificHeat', specific_heat_alumiunium);
+    'SpecificHeat', specific_heat_aluminium);
 
 thermalProperties(model, 'Face', ct_faces, ...
-    'ThermalConductivity', condutivity_TIM, ...
+    'ThermalConductivity', conductivity_TIM, ...
     'MassDensity', density_TIM, ...
-    'SpecificHeat', specific_heat_IIM);
+    'SpecificHeat', specific_heat_TIM);
 
+thermalProperties(model, 'Face', cell_faces, ...
+    'ThermalConductivity', conductivity_cellregion, ...
+    'MassDensity', density_cellregion, ...
+    'SpecificHeat', specific_heat_cellregion);
+    
 
 %% 3) Initial conditions (uniform 25 °C — change if you need)
 thermalIC(model, T_init);
 
 %% 4) Boundary conditions (same definitions are fine for transient)
-[freeEdges, heaterEdges] = getBCedges(model,ig);
+[freeEdges, heaterEdges, cellFaces] = getBCindexes(model,ig);
 
 % Convection on underside
 htc = flatPlateAirHTC(car_velocity,ig.pack_length);
@@ -49,10 +64,9 @@ thermalBC(model,'edge',freeEdges,...
           'AmbientTemperature',25);
 
 % appply heatflux on edges
-heatflux_cell = heat_cell * ig.n_cell_module / ig.Nrows / 2 / ig.heater_height / ig.pack_length; % half heatflux as assumed equal comming out either end
-A = ig.heater_height*ig.pack_length*ig.Nrows*2*ig.numU;
-Q = A*heatflux_cell;
-thermalBC(model, 'edge', heaterEdges, 'HeatFlux', heatflux_cell);
+heat_row_region = heat_cell * ig.n_cell_module / ig.Nrows; % half heatflux as assumed equal comming out either end
+Q = heat_row_region * ig.numU * ig.Nrows;
+internalHeatSource(model,heat_row_region, 'face', cellFaces);
 % --- OR ---
 % (B) Time-dependent example: step from 0 to heatflux_cell at t = 60 s
 % hf = @(region,state) (state.time >= 60) * heatflux_cell;

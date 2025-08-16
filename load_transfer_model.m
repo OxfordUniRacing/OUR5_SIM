@@ -360,12 +360,13 @@ title(sprintf('Temperature at t = %.1f s', t_data(k)));
 
 % Create animated GIF
 gifFile = 'thermal_animation.gif';
-cbar_interval = 1;
+cbar_interval = 0.1;
 for k = 1:length(animation_t)-1
     pdeplot(model,'XYData',T_animations(:,k),'ColorMap','jet');
     caxis([T_init ceil(max(max(T_animations))/cbar_interval)*cbar_interval])
     c = colorbar; c.Label.String = 'Temperature (°C)';
     title(sprintf('Temperature at t = %.2f s',animation_t(k+1)));
+    axis equal
     drawnow
 
     % Capture the frame as an image

@@ -1,9 +1,10 @@
-function [freeEdges, heaterEdges] = getBCedges(model,ig)
-% Coordinates of cooled edges
+function [freeEdges, heaterEdges, cellFaces] = getBCindexes(model, ig)
+
+% ============ Cooling edges ============
 cooledEdgesCoords = []; 
 
 if ig.Nfins > 0
-    % Get all X edges along bottom of baseplate (between ig.xmin and ig.xmax)
+    % Get all X edges along bottom of baseplate
     y_bottombase = -ig.base_thk;  
     y_midfin     = -ig.base_thk - ig.fin_h/2;
     y_endfin     = -ig.base_thk - ig.fin_h;
@@ -14,8 +15,7 @@ if ig.Nfins > 0
             % Gap ends at start of a fin
             x_end = ig.xmin + fi * ig.fin_spacing + (fi-1) * ig.fin_thk;
         else
-            % After last fin
-            x_end = ig.xmax;
+            x_end = ig.xmax; % After last fin
         end
         
         % Midpoint of this gap segment (bottom edge)
@@ -43,7 +43,7 @@ end
 
 freeEdges = nearestEdge(model.Geometry, cooledEdgesCoords);
 
-% --- Heated faces ---
+% ============ Heater edges ============
 heatedMidpoints = []; 
 yc_centers = (1:ig.Nrows) .* (ig.wall_h / (ig.Nrows + 1));
 
@@ -66,5 +66,18 @@ for ui = 1:ig.numU
 end
 
 heaterEdges = nearestEdge(model.Geometry, heatedMidpoints);
+
+% ============ Cell faces ============
+cellCenters = []; 
+for ui = 1:ig.numU
+    xc = ig.x_centers(ui);
+    for r = 1:ig.Nrows
+        yc = yc_centers(r);
+        % midpoint of cell region (not heater strip)
+        cellCenters(end+1,:) = [xc, yc];
+    end
+end
+
+cellFaces = nearestFace(model.Geometry, cellCenters);
 
 end

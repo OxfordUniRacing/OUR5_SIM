@@ -19,27 +19,36 @@ function [T_animations, model] = thermal_model_2D_transient_profile(T_init,t,hea
     density_TIM = 500;
     specific_heat_IIM = 100;
     
-    %find faces
-    al_faces = find(~contains(names,'thermal'));
-    ct_faces = find(contains(names,'thermal'));
+    conductivity_cell        = 30;     % example – depends on cell design
+    density_cell             = 2500;   % typical 18650 density ~2.5 g/cm3
+    specific_heat_cell       = 1000;   % J/kg-K (approx, varies with chemistry)
     
-    %apply materials
-    thermalProperties(model, 'Face', al_faces, ...
-        'ThermalConductivity', condutivity_aluminium, ...
-        'MassDensity', density_aluminium, ...
-        'SpecificHeat', specific_heat_alumiunium);
-    
-    thermalProperties(model, 'Face', ct_faces, ...
-        'ThermalConductivity', condutivity_TIM, ...
-        'MassDensity', density_TIM, ...
-        'SpecificHeat', specific_heat_IIM);
-    
+    % find faces
+    al_faces   = find(~contains(names,'thermal') & ~contains(names,'cell')); % everything else
+    ct_faces   = find(contains(names,'thermal'));
+    cell_faces = find(contains(names,'cell'));
+
+    % apply materials
+thermalProperties(model, 'Face', al_faces, ...
+    'ThermalConductivity', conductivity_aluminium, ...
+    'MassDensity', density_aluminium, ...
+    'SpecificHeat', specific_heat_aluminium);
+
+thermalProperties(model, 'Face', ct_faces, ...
+    'ThermalConductivity', conductivity_TIM, ...
+    'MassDensity', density_TIM, ...
+    'SpecificHeat', specific_heat_TIM);
+
+thermalProperties(model, 'Face', cell_faces, ...
+    'ThermalConductivity', conductivity_cell, ...
+    'MassDensity', density_cell, ...
+    'SpecificHeat', specific_heat_cell);
     
     %% 3) Initial conditions (uniform 25 °C — change if you need)
     thermalIC(model, T_init);
     
     %% 4) setup boundary conditions (same definitions are fine for transient)
-    [freeEdges, heaterEdges] = getBCedges(model,ig);
+    [freeEdges, heaterEdges, cellFaces] = getBCindexes(model,ig);
     
     [t_unique, ia] = unique(t);
     % Convection on underside
@@ -47,8 +56,8 @@ function [T_animations, model] = thermal_model_2D_transient_profile(T_init,t,hea
     htc_unique = htc(ia);
     
     % appply heatflux on edges
-    heatflux_cell = heat_cell * ig.n_cell_module / ig.Nrows / 2 / ig.heater_height / ig.pack_length; % half heatflux as assumed equal comming out either end
-    heatflux_cell_unique = heatflux_cell(ia);
+    heat_row_region = heat_cell * ig.n_cell_module / ig.Nrows; % half heatflux as assumed equal comming out either end
+    heat_cellregion_unique = heat_row_region(ia);
     
     %% 6) Mesh
     generateMesh(model,"Hmax",0.5e-3);
@@ -63,11 +72,11 @@ function [T_animations, model] = thermal_model_2D_transient_profile(T_init,t,hea
         t_offset = t_chunk(1);
     
         % Create boundary condition functions using interpolation
-        hf_fun  = @(region, state) interp1(t_unique, heatflux_cell_unique, state.time + t_offset, 'linear', 'extrap');
+        Qrow_fun  = @(region, state) interp1(t_unique, heat_cellregion_unique, state.time + t_offset, 'linear', 'extrap');
         htc_fun = @(region, state) interp1(t_unique, htc_unique, state.time + t_offset, 'linear', 'extrap');
     
         % Apply BCs
-        thermalBC(model, 'edge', heaterEdges, 'HeatFlux', hf_fun);
+        internalHeatSource(model, Qrow_fun, 'face', cellFaces);
         thermalBC(model, 'edge', freeEdges, ...
             'ConvectionCoefficient', htc_fun, ...
             'AmbientTemperature', T_init);

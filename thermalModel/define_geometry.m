@@ -4,7 +4,8 @@ function [dl,bt,sf,ig,names] = define_geometry()
 ig.numU          = 5;               % number of U-shaped sheets
 ig.Nrows         = 4;               % heater rows per U on each inside face
 ig.pack_length   = 1;               % depth into page (m)
-ig.cell_diameter = 22e-3;
+ig.cell_diameter = 22e-3;           % cell diameter (m)
+ig.cell_length   = 70.15e-3;        % cell length (m)
 ig.n_cell_module = 18*5;
 
 % U geometry (meters)
@@ -90,6 +91,32 @@ for ui = 1:ig.numU
         R = [3;4; x1; x2; x2; x1; y1; y1; y2; y2];
         gd(:,end+1) = R; idx = idx+1;
         names{end+1} = sprintf('U%d_R%d_thermal_right', ui,r);
+    end
+end
+
+% --- Cells inside U channels ---
+if isfield(ig,'n_cell_module') && ig.n_cell_module > 0
+    cell_w = ig.cell_length;  % width in x-direction
+    cell_h = ig.cell_diameter;  % height in y-direction
+    
+    for ui = 1:ig.numU
+        xc = ig.x_centers(ui);  % center x of this U
+        yc_centers = (1:ig.Nrows) .* (ig.wall_h/(ig.Nrows+1));  % same vertical spacing as heaters
+
+        for r = 1:ig.Nrows
+            yc = yc_centers(r);   % center y position of this row
+            
+            % rectangle spanning from xc-a → xc+a (inner U walls)
+            x1 = xc - ig.a; 
+            x2 = xc + ig.a;
+            y1 = yc - cell_h/2;
+            y2 = yc + cell_h/2;
+            
+            R = [3;4; x1; x2; x2; x1; y1; y1; y2; y2];
+            gd(:,end+1) = R;
+            idx = idx+1;
+            names{end+1} = sprintf('U%d_R%d_cell',ui,r);
+        end
     end
 end
 
