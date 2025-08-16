@@ -13,7 +13,7 @@ ig.contact_thk   = 3e-4;             % heater/contact layer thickness (m)
 ig.heater_height = ig.cell_diameter; % heater rectangle height
 
 % U geometry (meters)
-ig.a             = (ig.cell_length + 2* ig.contact_thk) / 2;         % inner half-width of U opening (m)
+ig.a             = (ig.cell_length + 2 * ig.contact_thk) / 2;         % inner half-width of U opening (m)
 ig.wall_thk      = 3e-3;             % wall thickness of U (m)
 ig.bottom_thk    = 2e-3;             % bottom thickness of U (m)
 ig.wall_h        = 120e-3;           % wall height (m)
@@ -27,7 +27,7 @@ ig.pitch         = 2*(ig.a + ig.wall_thk) + 5e-3;  % adjust gap between Us here
 
 
 % fin parameters 
-ig.Nfins         = 60;               % number of fins
+ig.Nfins         = 0;               % number of fins
 ig.fin_thk       = 2e-3;             % thickness [m]
 ig.fin_h         = 5e-3;             % height [m]
 
@@ -38,6 +38,9 @@ ig.x_centers = ((0:ig.numU-1) - (ig.numU-1)/2) * ig.pitch;
 gd    = zeros(10,0);
 names = {};
 idx   = 0;
+ig.al_centroid   = [];   % aluminium walls + base
+ig.tim_centroid  = [];   % thermal pads
+ig.cell_centroid = [];   % cells
 
 % --- Build U pieces: left wall, right wall, bottom for each U ---
 for ui = 1:ig.numU
@@ -49,12 +52,14 @@ for ui = 1:ig.numU
     R = [3;4; x1; x2; x2; x1; y1; y1; y2; y2];
     gd(:,end+1) = R; idx = idx+1; 
     names{end+1} = sprintf('U%d_wall_left', ui);
+    ig.al_centroid(end+1,:) = [(x1+x2)/2, (y1+y2)/2];
 
     % right wall
     x1 = xc + ig.a; x2 = xc + ig.a + ig.wall_thk;
     R = [3;4; x1; x2; x2; x1; y1; y1; y2; y2];
     gd(:,end+1) = R; idx = idx+1; 
     names{end+1} = sprintf('U%d_wall_right', ui);
+    ig.al_centroid(end+1,:) = [(x1+x2)/2, (y1+y2)/2];
 
     % bottom (bridge)
     x1 = xc - ig.a - ig.wall_thk; x2 = xc + ig.a + ig.wall_thk;
@@ -62,6 +67,7 @@ for ui = 1:ig.numU
     R = [3;4; x1; x2; x2; x1; y1; y1; y2; y2];
     gd(:,end+1) = R; idx = idx+1; 
     names{end+1} = sprintf('U%d_base', ui);
+    ig.al_centroid(end+1,:) = [(x1+x2)/2, (y1+y2)/2];
 end
 
 % --- Baseplate rectangle ---
@@ -70,6 +76,7 @@ ig.xmax = max(ig.x_centers) + (ig.a + ig.wall_thk) + ig.margin;
 R = [3;4; ig.xmin; ig.xmax; ig.xmax; ig.xmin; -ig.base_thk; -ig.base_thk; 0; 0];
 gd(:,end+1) = R; idx = idx+1; 
 names{end+1} = 'baseplate';
+ig.al_centroid(end+1,:) = [(ig.xmin+ig.xmax)/2, (-ig.base_thk)/2];
 
 % --- Heater/contact strips ---
 for ui = 1:ig.numU
@@ -107,8 +114,8 @@ for ui = 1:ig.numU
         yc = yc_centers(r);   % center y position of this row
         
         % rectangle spanning from xc-a → xc+a (inner U walls)
-        x1 = xc - ig.cell_length/2; 
-        x2 = xc + ig.cell_length/2;
+        x1 = xc - cell_w/2; 
+        x2 = xc + cell_w/2;
         y1 = yc - cell_h/2;
         y2 = yc + cell_h/2;
         
@@ -134,6 +141,42 @@ if ig.Nfins > 0
         gd(:, end+1) = R;
         idx = idx + 1;
         names{end+1} = sprintf('fin_%d', fi);
+    end
+end
+
+
+
+% --- Store centroids ---
+% --- TIM/heater strips ---
+for ui = 1:ig.numU
+    xc = ig.x_centers(ui);
+    yc_centers = (0.5:1:ig.Nrows) .* ((ig.wall_h - ig.base_thk) / ig.Nrows) + ig.base_thk;
+    row_h = ig.heater_height;
+    for r = 1:ig.Nrows
+        yc = yc_centers(r);
+        y1 = yc - row_h/2; y2 = yc + row_h/2;
+
+        % left
+        x1 = xc - ig.a; x2 = xc - ig.a + ig.contact_thk;
+        ig.tim_centroid(end+1,:) = [(x1+x2)/2, (y1+y2)/2];
+
+        % right
+        x1 = xc + ig.a - ig.contact_thk; x2 = xc + ig.a;
+        ig.tim_centroid(end+1,:) = [(x1+x2)/2, (y1+y2)/2];
+    end
+end
+
+% --- Cells ---
+cell_w = ig.cell_length;
+cell_h = ig.cell_diameter;
+for ui = 1:ig.numU
+    xc = ig.x_centers(ui);
+    yc_centers = (0.5:1:ig.Nrows) .* ((ig.wall_h - ig.base_thk) / ig.Nrows) + ig.base_thk;
+    for r = 1:ig.Nrows
+        yc = yc_centers(r);
+        x1 = xc - cell_w/2; x2 = xc + cell_w/2;
+        y1 = yc - cell_h/2; y2 = yc + cell_h/2;
+        ig.cell_centroid(end+1,:) = [(x1+x2)/2, (y1+y2)/2];
     end
 end
 
