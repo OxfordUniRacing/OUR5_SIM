@@ -20,15 +20,18 @@ title('Geometry');
     density_TIM = 500;
     specific_heat_TIM = 100;
     
-    cell_volume = (ig.cell_diameter^2/4)/ig.cell_length;
+    cell_volume = (pi * ig.cell_diameter^2/4) * ig.cell_length;
     cell_region_volume = ig.cell_diameter * ig.cell_length * ig.pack_length;
     conductivity_cell        = 10;     % example – depends on cell design
     density_cell             = 0.07 / cell_volume;   % cells weight 70g accoroding to molicel datasheet
     specific_heat_cell       = 1000;   % J/kg-K (approx, varies with chemistry)
+    
     region_scaling_factor    = (cell_volume * ig.n_cell_module / ig.Nrows) / cell_region_volume; % the region assigned to cells is cuboidic but the cells dont fill the full volume obviosuly
+    
     conductivity_cellregion  =  conductivity_cell * region_scaling_factor;
     density_cellregion       =  density_cell * region_scaling_factor;
-    specific_heat_cellregion = specific_heat_cell * region_scaling_factor;
+    specific_heat_cellregion =  specific_heat_cell * region_scaling_factor;
+    
     % find faces
     al_faces   = find(~contains(names,'thermal') & ~contains(names,'cell')); % everything else
     ct_faces   = find(contains(names,'thermal'));

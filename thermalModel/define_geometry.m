@@ -8,8 +8,12 @@ ig.cell_diameter = 22e-3;           % cell diameter (m)
 ig.cell_length   = 70.15e-3;        % cell length (m)
 ig.n_cell_module = 18*5;
 
+% thermal pad geometry
+ig.contact_thk   = 3e-4;             % heater/contact layer thickness (m)
+ig.heater_height = ig.cell_diameter; % heater rectangle height
+
 % U geometry (meters)
-ig.a             = 78e-3/2;         % inner half-width of U opening (m)
+ig.a             = (ig.cell_length + 2* ig.contact_thk) / 2;         % inner half-width of U opening (m)
 ig.wall_thk      = 3e-3;             % wall thickness of U (m)
 ig.bottom_thk    = 2e-3;             % bottom thickness of U (m)
 ig.wall_h        = 120e-3;           % wall height (m)
@@ -21,9 +25,6 @@ ig.margin        = 1e-3;             % side margin around U array (m)
 % spacing (center-to-center)
 ig.pitch         = 2*(ig.a + ig.wall_thk) + 5e-3;  % adjust gap between Us here
 
-% heater/contact geometry
-ig.contact_thk   = 3e-4;             % heater/contact layer thickness (m)
-ig.heater_height = ig.cell_diameter; % heater rectangle height
 
 % fin parameters 
 ig.Nfins         = 60;               % number of fins
@@ -73,7 +74,7 @@ names{end+1} = 'baseplate';
 % --- Heater/contact strips ---
 for ui = 1:ig.numU
     xc = ig.x_centers(ui);
-    yc_centers = (1:ig.Nrows) .* (ig.wall_h/(ig.Nrows+1));
+    yc_centers = (0.5:1:ig.Nrows) .* ((ig.wall_h - ig.base_thk) / (ig.Nrows)) + ig.base_thk;  % same vertical spacing as cells
     row_h = ig.heater_height;
 
     for r = 1:ig.Nrows
@@ -95,30 +96,29 @@ for ui = 1:ig.numU
 end
 
 % --- Cells inside U channels ---
-if isfield(ig,'n_cell_module') && ig.n_cell_module > 0
-    cell_w = ig.cell_length;  % width in x-direction
-    cell_h = ig.cell_diameter;  % height in y-direction
-    
-    for ui = 1:ig.numU
-        xc = ig.x_centers(ui);  % center x of this U
-        yc_centers = (1:ig.Nrows) .* (ig.wall_h/(ig.Nrows+1));  % same vertical spacing as heaters
+cell_w = ig.cell_length;  % width in x-direction
+cell_h = ig.cell_diameter;  % height in y-direction
 
-        for r = 1:ig.Nrows
-            yc = yc_centers(r);   % center y position of this row
-            
-            % rectangle spanning from xc-a → xc+a (inner U walls)
-            x1 = xc - ig.a; 
-            x2 = xc + ig.a;
-            y1 = yc - cell_h/2;
-            y2 = yc + cell_h/2;
-            
-            R = [3;4; x1; x2; x2; x1; y1; y1; y2; y2];
-            gd(:,end+1) = R;
-            idx = idx+1;
-            names{end+1} = sprintf('U%d_R%d_cell',ui,r);
-        end
+for ui = 1:ig.numU
+    xc = ig.x_centers(ui);  % center x of this U
+    yc_centers = (0.5:1:ig.Nrows) .* ((ig.wall_h - ig.base_thk) / (ig.Nrows)) + ig.base_thk;  % same vertical spacing as heaters
+
+    for r = 1:ig.Nrows
+        yc = yc_centers(r);   % center y position of this row
+        
+        % rectangle spanning from xc-a → xc+a (inner U walls)
+        x1 = xc - ig.cell_length/2; 
+        x2 = xc + ig.cell_length/2;
+        y1 = yc - cell_h/2;
+        y2 = yc + cell_h/2;
+        
+        R = [3;4; x1; x2; x2; x1; y1; y1; y2; y2];
+        gd(:,end+1) = R;
+        idx = idx+1;
+        names{end+1} = sprintf('U%d_R%d_cell',ui,r);
     end
 end
+
 
 % --- Base plate fins ---
 if ig.Nfins > 0

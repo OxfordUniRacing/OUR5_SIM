@@ -19,9 +19,17 @@ function [T_animations, model] = thermal_model_2D_transient_profile(T_init,t,hea
     density_TIM = 500;
     specific_heat_IIM = 100;
     
-    conductivity_cell        = 30;     % example – depends on cell design
-    density_cell             = 2500;   % typical 18650 density ~2.5 g/cm3
+    cell_volume = (pi * ig.cell_diameter^2/4) * ig.cell_length;
+    cell_region_volume = ig.cell_diameter * ig.cell_length * ig.pack_length;
+    conductivity_cell        = 10;     % example – depends on cell design
+    density_cell             = 0.07 / cell_volume;   % cells weight 70g accoroding to molicel datasheet
     specific_heat_cell       = 1000;   % J/kg-K (approx, varies with chemistry)
+    
+    region_scaling_factor    = (cell_volume * ig.n_cell_module / ig.Nrows) / cell_region_volume; % the region assigned to cells is cuboidic but the cells dont fill the full volume obviosuly
+    
+    conductivity_cellregion  =  conductivity_cell * region_scaling_factor;
+    density_cellregion       =  density_cell * region_scaling_factor;
+    specific_heat_cellregion = specific_heat_cell * region_scaling_factor;
     
     % find faces
     al_faces   = find(~contains(names,'thermal') & ~contains(names,'cell')); % everything else
@@ -40,9 +48,9 @@ thermalProperties(model, 'Face', ct_faces, ...
     'SpecificHeat', specific_heat_TIM);
 
 thermalProperties(model, 'Face', cell_faces, ...
-    'ThermalConductivity', conductivity_cell, ...
-    'MassDensity', density_cell, ...
-    'SpecificHeat', specific_heat_cell);
+    'ThermalConductivity', conductivity_cellregion, ...
+    'MassDensity', density_cellregion, ...
+    'SpecificHeat', specific_heat_cellregion);
     
     %% 3) Initial conditions (uniform 25 °C — change if you need)
     thermalIC(model, T_init);
