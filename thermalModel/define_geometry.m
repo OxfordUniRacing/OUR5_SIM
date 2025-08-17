@@ -19,17 +19,18 @@ ig.bottom_thk    = 2e-3;             % bottom thickness of U (m)
 ig.wall_h        = 120e-3;           % wall height (m)
 
 % baseplate
-ig.base_thk      = 4e-3;             % baseplate thickness (m)
+ig.base_thk      = 4e-3 + 3e-3;             % baseplate thickness (m) (4 mm thick base plus 3.8mm for heatsink base)
 ig.margin        = 1e-3;             % side margin around U array (m)
 
 % spacing (center-to-center)
 ig.pitch         = 2*(ig.a + ig.wall_thk) + 5e-3;  % adjust gap between Us here
 
 
-% fin parameters 
-ig.Nfins         = 0;               % number of fins
-ig.fin_thk       = 2e-3;             % thickness [m]
-ig.fin_h         = 5e-3;             % height [m]
+% fin parameters (assuming using ATS-EXL78-1220-R0 cut down into sections across base, https://www.qats.com/Product/Heat-Sinks/Extrusion-Profiles-lengths-/Profiles/ATS-EXL78-1220-R0/3664.aspx)
+
+ig.Nfins         = 0;% floor(24/146e-3 * 400e-3);% number of fins (heatsink has 24 fins per 146mm width, cut down to fit over approximate base width)
+ig.fin_thk       = 0.5e-3;             % thickness [m] (approxiamate)
+ig.fin_h         = 4.6e-3;             % height [m]
 
 % --- Compute U centers along x ---
 ig.x_centers = ((0:ig.numU-1) - (ig.numU-1)/2) * ig.pitch;
@@ -141,6 +142,7 @@ if ig.Nfins > 0
         gd(:, end+1) = R;
         idx = idx + 1;
         names{end+1} = sprintf('fin_%d', fi);
+        ig.al_centroid(end+1,:) = [(x1+x2)/2, (y1+y2)/2];
     end
 end
 
