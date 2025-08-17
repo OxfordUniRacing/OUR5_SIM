@@ -66,7 +66,7 @@ thermalBC(model,'edge',freeEdges,...
 % appply heatflux on edges
 heat_row_region = heat_cell * ig.n_cell_module / ig.Nrows; % half heatflux as assumed equal comming out either end
 Q = heat_row_region * ig.numU * ig.Nrows;
-internalHeatSource(model, heat_row_region/ig.cell_diameter*ig.cell_length, 'face', cellFaces); %heat input is apparently in W/m2 but i am unsure about this and it is applied equally to each region
+internalHeatSource(model, heat_row_region/(ig.cell_diameter*ig.cell_length), 'face', cellFaces); %heat input is apparently in W/m2 but i am unsure about this and it is applied equally to each region
 % --- OR ---
 % (B) Time-dependent example: step from 0 to heatflux_cell at t = 60 s
 % hf = @(region,state) (state.time >= 60) * heatflux_cell;
