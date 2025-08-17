@@ -351,21 +351,27 @@ animation_t = [t_data(1:length(curv_scale):end); t_data(end)];
 
 
 %% Plot at a specific time index (e.g., t = 600 s)
-k = length(animation_t)-1;   
+k = length(animation_t);   
 figure
 pdeplot(model,'XYData',T_animations(:,end),'ColorMap','jet');
 xlabel("dimensions (m)")
 c = colorbar; c.Label.String = 'Temperature (°C)';
-title(sprintf('Temperature at t = %.1f s', t_data(k)));
+[maxT, idx] = max(T_animations(:,end));
+title(sprintf('Temperature at t = %.1f s\n Max temperature: %2.2f °C', animation_t(k),maxT));
+% add max temp point annotation
+fprintf("Max temperature: %2.2f °C\n",maxT);
+
 
 % Create animated GIF
 gifFile = 'thermal_animation.gif';
-cbar_interval = 0.1;
-for k = 1:length(animation_t)-1
+cbar_interval = 1;
+figure
+for k = 1:length(animation_t)
     pdeplot(model,'XYData',T_animations(:,k),'ColorMap','jet');
-    caxis([T_init ceil(max(max(T_animations))/cbar_interval)*cbar_interval])
+    clim([T_init ceil(max(max(T_animations))/cbar_interval)*cbar_interval])
     c = colorbar; c.Label.String = 'Temperature (°C)';
-    title(sprintf('Temperature at t = %.2f s',animation_t(k+1)));
+    [maxT, idx] = max(T_animations(:,k));
+    title(sprintf('Temperature at t = %.1f s\n Max temperature: %2.2f °C', animation_t(k),maxT));
     axis equal
     drawnow
 
