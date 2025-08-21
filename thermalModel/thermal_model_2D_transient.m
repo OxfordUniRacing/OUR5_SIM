@@ -16,8 +16,8 @@ function [T, model] = thermal_model_2D_transient(T_init,t,heat_cell,car_velocity
     density_aluminium = 2700;
     specific_heat_aluminium = 900;
     
-    conductivity_TIM = 10;
-    density_TIM = 500;
+    conductivity_TIM = 3;
+    density_TIM = 3000;
     specific_heat_TIM = 100;
     
     cell_volume = (pi * ig.cell_diameter^2/4) * ig.cell_length;
