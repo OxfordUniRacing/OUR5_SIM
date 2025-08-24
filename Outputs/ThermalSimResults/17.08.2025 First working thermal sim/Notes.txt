@@ -1,0 +1,10 @@
+Average car velocity (giving heat transfer coefficient on base) and cell heat from endurance run applied to pack 2d model with and without fins. Fin dimensions approximate ATS-EXL78-1220-R0 cut to fit across the base area.
+
+Initial temperature = 25 °C
+Cell heat =  2.4341 W
+Car velocity = 15.2914 ms^-1
+
+without fins: Max temperature: 46.26 °C (deltaT = 21.26 °C)
+with fins: Max temperature: 43.66 °C (deltaT = 18.66 °C)
+
+Fins give 12% lower deltaT
