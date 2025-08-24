@@ -21,11 +21,11 @@ function max_regen_torque = max_regen_torque(rpm,params,state)
             eff = motor_efficiency(rpm_mid,250);
     
             pwr_est = rpm_mid * 250 * pi/30 / eff;
-            bat_pwr = battery_power(pwr_est,params,state);
+            %bat_pwr = battery_power(pwr_est,params,state);
 
-            if bat_pwr > power_limit
+            if pwr_est > power_limit
                 rpm_max = rpm_mid; % Update rpm_max for next iteration
-            elseif bat_pwr < power_limit - pwr_tol
+            elseif pwr_est < power_limit - pwr_tol
                 rpm_min = rpm_mid; % Update rpm_min for next iteration
             else
                 break
@@ -52,12 +52,12 @@ function max_regen_torque = max_regen_torque(rpm,params,state)
                 torque_max = torque_mid;
             else
                 pwr_est = rpm * torque_mid * pi/30 / eff;
-                bat_pwr = battery_power(pwr_est,params,state);
+                %bat_pwr = battery_power(pwr_est,params,state);
                 
                 
-                if bat_pwr > power_limit
+                if pwr_est > power_limit
                     torque_max = torque_mid;
-                elseif bat_pwr < power_limit - pwr_tol
+                elseif pwr_est < power_limit - pwr_tol
                     torque_min = torque_mid;
                 else
                     break

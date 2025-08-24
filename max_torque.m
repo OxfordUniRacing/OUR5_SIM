@@ -12,12 +12,47 @@
 
 function max_torque = max_torque(rpm,params,state)
     %peak
-    power_limit = params.control.max_power;
-    pwr_tol = 100;
-    max_iterations = 50;
+    pwr_tol = 100; %to within how many watts
+    max_iterations = 50; %how many iterations for binary search (should never be hit)
+
+
+    %Check bsaed on battery SOC with max current
+    max_current = 300;
+    max_battery_power = (state.battery_voltage - max_current * params.battery.Ns*params.cellR/params.battery.Np) * max_current;
+
+
+    %Now derate based on temperature
+    % 55deg -> 0.8
+    % 58deg -> 0.5
+    % 59 deg -> 0.1
+    % 60 deg 0 -> 0.01 (keep it moving but should be 0)
+    temp_derate = 1.0;
+
+    if params.control.temp_derate
+        if state.cell_temperature > 60
+            temp_derate = 0.01;
+        elseif state.cell_temperature > 59 
+            temp_derate = 0.1;
+        elseif state.cell_temperature > 58 
+            temp_derate = 0.5;
+        elseif state.cell_temperature > 55
+            temp_derate = 0.8;
+        end
+    end
+    
+    power_limit = temp_derate * min(max_battery_power, params.control.max_power);
     
 
-    persistent rpm_derate
+
+    % See if we need to derate based on voltage
+    % Due to internal resistance, we can determine max torque based on
+    % current battery voltage and set max battery current 
+    % Max battery current should be ~300
+
+    
+
+
+    rpm_derate = 0;
    
     if(true)
         rpm_min = 0;
@@ -28,11 +63,11 @@ function max_torque = max_torque(rpm,params,state)
             eff = motor_efficiency(rpm_mid,250);
     
             pwr_est = rpm_mid * 250 * pi/30 / eff;
-            bat_pwr = battery_power(pwr_est,params,state);
+            %bat_pwr = battery_power(pwr_est,params,state);
 
-            if bat_pwr > power_limit
+            if pwr_est > power_limit
                 rpm_max = rpm_mid; % Update rpm_max for next iteration
-            elseif bat_pwr < power_limit - pwr_tol
+            elseif pwr_est < power_limit - pwr_tol
                 rpm_min = rpm_mid; % Update rpm_min for next iteration
             else
                 break
@@ -59,12 +94,12 @@ function max_torque = max_torque(rpm,params,state)
                 torque_max = torque_mid;
             else
                 pwr_est = rpm * torque_mid * pi/30 / eff;
-                bat_pwr = battery_power(pwr_est,params,state);
+                %bat_pwr = battery_power(pwr_est,params,state);
                 
                 
-                if bat_pwr > power_limit
+                if pwr_est > power_limit
                     torque_max = torque_mid;
-                elseif bat_pwr < power_limit - pwr_tol
+                elseif pwr_est < power_limit - pwr_tol
                     torque_min = torque_mid;
                 else
                     break
@@ -77,5 +112,6 @@ function max_torque = max_torque(rpm,params,state)
         end
 
         max_torque = torque_mid;
+
     end
 end

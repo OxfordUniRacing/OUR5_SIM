@@ -27,4 +27,9 @@ function battery_power = battery_power(motor_power,params,state)
     ideal_current = motor_power/b;
     [~,mask] = min(abs(current - ideal_current));
     battery_power = current(mask) * (state.battery_voltage + a*current(mask));
+
+    clear isreal
+    if(~isreal(battery_power))
+       keyboard(); 
+    end
 end

@@ -12,9 +12,9 @@ addpath("./thermalModel")
 %CAR PARAMETERS
 params.M = 320; %kg
 params.M_dist = 0.5; %distribution mass over front wheels
-params.gratio = 4.5; %gear reduction ratio
-params.lat_mu = 1.5; %lateral tyre coeff. friction
-params.long_mu = 1.3; %longitudinal tyre coeff. friction
+params.gratio = 4.0; %gear reduction ratio
+params.lat_mu = 1.4; %lateral tyre coeff. friction
+params.long_mu = 1.4; %longitudinal tyre coeff. friction
 params.tyre_dia = 16; %tyre diameter, inches
 params.COG_h = 0.3; %m
 params.wheelbase = 1.525; %m
@@ -42,10 +42,11 @@ params.battery.cellRth = 10;
 params.efficiency.mechanical = 0.92;
 
 %CONTROL
-params.control.driver_skill = 0.8; %Driver skill factor (~0.5 to 1), acts as derate
+params.control.driver_skill = 1.0; %Driver skill factor (~0.5 to 1), acts as derate
 params.control.driver_smoothness_alpha = 0.95; % smoothing factor, 0 = slow change, 1 = instant change
 params.control.max_power = 80e3;
 params.control.regen = true; % toggle regen on or off
+params.control.temp_derate = false;
 
 %ENVIRONMENT
 g = 9.81;
@@ -148,6 +149,8 @@ function [F_long_load_transfer, a_long] = long_load_transfer(params,storage)
     a_long = storage(end).F / params.M;
     F_long_load_transfer = params.M * a_long * params.COG_h / params.wheelbase;
 end
+
+lap_times = zeros(1,Num_Laps);
 
 %SIM
 for lapN = 1:Num_Laps
@@ -276,6 +279,10 @@ for lapN = 1:Num_Laps
         [state.F_long_load_transfer, state.a_long] = long_load_transfer(params,storage); % compute bicycle model for this segment
 
     end
+    if(state.SoC < 0.1) 
+        fprintf("Battery Empty!")
+        break;
+    end
 end
 
 %DATA ANALYSIS
@@ -321,6 +328,15 @@ ylabel("Speed / ms^-1")
 title("Vehicle Speed vs Max Cornering Speed")
 legend("Vehicle Speed","Max Cornering Speed")
 ylim([0,50])
+xlim([0,947])
+
+figure;
+plot(lap_times)
+hold on
+title("Lap Times over Endurance")
+xlabel("Lap Number")
+ylabel("Lap Time")
+
 
 figure
 yyaxis left
@@ -336,6 +352,10 @@ plot(t_data,vertcat(storage.cell_temperature))
 ylabel("Cell Temperature (°C)")
 xlabel("Time (s)")
 
+
+
+%%!!!!!!! SHOULD BE IN A SEPERATE FILE AND RAN SEPERATELY
+%{
 %% thermal sim
 T_init = params.ambient_temperature;
 heat_cell = (I_data / params.battery.Np).^2 * params.cellR ;
@@ -348,6 +368,7 @@ animation_t = [t_data(1:length(curv_scale):end); t_data(end)];
 % simulation that uses the profile to update at the model at every time
 % point
 % [T_animations, model] = thermal_model_2D_transient_profile(T_init,t_data,heat_cell,v_data,animation_t);
+
 
 
 %% Plot at a specific time index (e.g., t = 600 s)
@@ -386,3 +407,6 @@ for k = 1:length(animation_t)
         imwrite(A,map,gifFile,'gif','WriteMode','append','DelayTime',0.5);
     end
 end
+
+
+%}
