@@ -151,10 +151,10 @@ function [F_long_load_transfer, a_long] = long_load_transfer(params,storage)
 end
 
 lap_times = zeros(1,Num_Laps);
-
+n_steps = length(curv_scale);
 %SIM
 for lapN = 1:Num_Laps
-    for i = 1:length(curv_scale)
+    for i = 1:n_steps
 
         % make sure that the driver doesnt come off the brake before the
         % corner apex which would cause oscillation
@@ -191,10 +191,10 @@ for lapN = 1:Num_Laps
             % in a corner at the current speed. checks if the driver needs to start
             % braking
         
-            for k = i+1:length(curv_scale)+sim.runover
+            for k = i+1:n_steps+sim.runover
                 % if index exceeds track length loop back to the start of the track
-                if k > length(curv_scale)
-                    o = k - length(curv_scale);
+                if k > n_steps
+                    o = k - n_steps;
                 else
                     o = k;
                 end
@@ -250,7 +250,6 @@ for lapN = 1:Num_Laps
             Eff_motor =  motor_efficiency(state.RPM_motor,state.T_motor); % calculate motor efficiency with regen torque
             state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute electrical motor power
             [state.P_battery, state.I_battery] = battery_power(state.P_motor_draw,params,state); % get maximum battery power TODO include inverter efficiency 
-            state.I_battery = state.P_battery / pack_voltage(params,state); % compute battery current TODO make pack voltage a funciton of SoC and cell resistance
             state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
         
         else % otherwise accelerating
@@ -264,7 +263,6 @@ for lapN = 1:Num_Laps
             state.P_motor_drive = state.T_motor * state.RPM_motor * pi / 30; % compute motor mechanical power
             state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute motor electrical power 
             [state.P_battery,state.I_battery] = battery_power(state.P_motor_draw, params, state); % get battery power TODO include inverter efficiency 
-            state.I_battery = state.P_battery / pack_voltage(params,state); % compute battery current TODO make pack voltage a funciton cell resistance
             state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
             
         end
@@ -274,7 +272,7 @@ for lapN = 1:Num_Laps
         state.battery_voltage = pack_voltage(params,state); 
         state.cell_temperature = cell_temperature(params,state); 
         state.cell_losses = cell_losses(params,state);
-        storage((lapN-1)*length(curv_scale) + i) = state; % save state structure 
+        storage((lapN-1)*n_steps + i) = state; % save state structure 
     
         [state.F_long_load_transfer, state.a_long] = long_load_transfer(params,storage); % compute bicycle model for this segment
 
@@ -353,60 +351,5 @@ ylabel("Cell Temperature (°C)")
 xlabel("Time (s)")
 
 
-
-%%!!!!!!! SHOULD BE IN A SEPERATE FILE AND RAN SEPERATELY
-%{
-%% thermal sim
-T_init = params.ambient_temperature;
-heat_cell = (I_data / params.battery.Np).^2 * params.cellR ;
-animation_t = [t_data(1:length(curv_scale):end); t_data(end)];
-
-% simulation that computes temp profile at end of each lap using an
-% averaged heat flux and average car velocity
-[T_animations, model] = thermal_model_2D_transient(T_init,animation_t,mean(heat_cell),mean(v_data));
-
-% simulation that uses the profile to update at the model at every time
-% point
-% [T_animations, model] = thermal_model_2D_transient_profile(T_init,t_data,heat_cell,v_data,animation_t);
-
-
-
-%% Plot at a specific time index (e.g., t = 600 s)
-k = length(animation_t);   
-figure
-pdeplot(model,'XYData',T_animations(:,end),'ColorMap','jet');
-xlabel("dimensions (m)")
-c = colorbar; c.Label.String = 'Temperature (°C)';
-[maxT, idx] = max(T_animations(:,end));
-title(sprintf('Temperature at t = %.1f s\n Max temperature: %2.2f °C', animation_t(k),maxT));
-% add max temp point annotation
-fprintf("Max temperature: %2.2f °C\n",maxT);
-
-
-% Create animated GIF
-gifFile = 'thermal_animation.gif';
-cbar_interval = 1;
-figure
-for k = 1:length(animation_t)
-    pdeplot(model,'XYData',T_animations(:,k),'ColorMap','jet');
-    clim([T_init ceil(max(max(T_animations))/cbar_interval)*cbar_interval])
-    c = colorbar; c.Label.String = 'Temperature (°C)';
-    [maxT, idx] = max(T_animations(:,k));
-    title(sprintf('Temperature at t = %.1f s\n Max temperature: %2.2f °C', animation_t(k),maxT));
-    axis equal
-    drawnow
-
-    % Capture the frame as an image
-    frame = getframe(gcf);
-    im = frame2im(frame);
-    [A,map] = rgb2ind(im,256);
-
-    if k == 1
-        imwrite(A,map,gifFile,'gif','LoopCount',Inf,'DelayTime',0.5);
-    else
-        imwrite(A,map,gifFile,'gif','WriteMode','append','DelayTime',0.5);
-    end
-end
-
-
-%}
+%% thermal simulation
+run("thermal_simultation.m");

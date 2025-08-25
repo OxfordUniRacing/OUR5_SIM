@@ -1,4 +1,4 @@
-function [freeEdges, heaterEdges, cellFaces] = getBCindexes(model, ig)
+function [freeEdges, cellFaces] = getBCindexes(model, ig)
 
 % ============ Cooling edges ============
 cooledEdgesCoords = []; 
@@ -43,31 +43,10 @@ end
 
 freeEdges = nearestEdge(model.Geometry, cooledEdgesCoords);
 
-% ============ Heater edges ============
-heatedMidpoints = []; 
-yc_centers = (1:ig.Nrows) .* (ig.wall_h / (ig.Nrows + 1));
-
-for ui = 1:ig.numU
-    xc = ig.x_centers(ui);
-
-    for r = 1:ig.Nrows
-        yc = yc_centers(r);
-        y1 = yc - ig.heater_height/2; 
-        y2 = yc + ig.heater_height/2;
-
-        % Left inner face heater
-        x_l = xc - ig.a + ig.contact_thk;
-        heatedMidpoints(end+1,:) = [x_l, (y1 + y2) / 2];
-
-        % Right inner face heater
-        x_r = xc + ig.a - ig.contact_thk; 
-        heatedMidpoints(end+1,:) = [x_r, (y1 + y2) / 2];
-    end
-end
-
-heaterEdges = nearestEdge(model.Geometry, heatedMidpoints);
 
 % ============ Cell faces ============
+yc_centers = (1:ig.Nrows) .* (ig.module_h / (ig.Nrows + 1));
+
 cellCenters = []; 
 for ui = 1:ig.numU
     xc = ig.x_centers(ui);

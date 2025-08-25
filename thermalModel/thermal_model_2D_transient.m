@@ -2,7 +2,7 @@ function [T, model] = thermal_model_2D_transient(T_init,t,heat_cell,car_velocity
     %% 1) Make a transient model
     model = createpde('thermal','transient');
     
-    [dl,bt,sf,ig,names] = define_geometry();
+    [dl,bt,sf,ig,names] = define_geometry_2();
     geometryFromEdges(model,dl);
     
     figure('units','normalized','position',[0.15 0.15 0.6 0.6]);
@@ -15,6 +15,11 @@ function [T, model] = thermal_model_2D_transient(T_init,t,heat_cell,car_velocity
     conductivity_aluminium = 237;
     density_aluminium = 2700;
     specific_heat_aluminium = 900;
+
+    conductivity_copper = 401;     % W/(m·K)
+    density_copper = 8960;         % kg/m^3
+    specific_heat_copper = 385;    % J/(kg·K)
+    copper_region_scaling_factor = (ig.NbusbarModule/2 * ig.busbar_width) / ig.pack_length;
     
     conductivity_TIM = 3;
     density_TIM = 3000;
@@ -32,7 +37,7 @@ function [T, model] = thermal_model_2D_transient(T_init,t,heat_cell,car_velocity
     density_cellregion       =  density_cell * region_scaling_factor;
     
     % find faces
-    [al_faces, ct_faces, cell_faces] = findMaterialFaces(model, ig);
+    [al_faces, ct_faces, cell_faces, cu_faces] = findMaterialFaces(model, ig);
     
     % apply materials
 thermalProperties(model, 'Face', al_faces, ...
@@ -50,28 +55,41 @@ thermalProperties(model, 'Face', cell_faces, ...
     'MassDensity', density_cellregion, ...
     'SpecificHeat', specific_heat_cell);
     
+thermalProperties(model, 'Face', cu_faces, ...
+    'ThermalConductivity', conductivity_copper * copper_region_scaling_factor, ...
+    'MassDensity', density_copper, ...
+    'SpecificHeat', specific_heat_copper * copper_region_scaling_factor);
+    
 
 %% 3) Initial conditions (uniform 25 °C — change if you need)
 thermalIC(model, T_init);
 
 %% 4) Boundary conditions (same definitions are fine for transient)
-[freeEdges, heaterEdges, cellFaces] = getBCindexes(model,ig);
-
-% Convection on underside
+[freeEdges, cellFaces] = getBCindexes(model,ig);
 htc = flatPlateAirHTC(car_velocity,ig.pack_length);
-thermalBC(model,'edge',freeEdges,...
+
+if isscalar(heat_cell)&& isscalar(car_velocity)
+    % Convection on underside
+    thermalBC(model,'edge',freeEdges,...
           'ConvectionCoefficient',htc,...
           'AmbientTemperature',25);
 
-% appply heatflux on edges
-heat_row_region = heat_cell * ig.n_cell_module / ig.Nrows; % half heatflux as assumed equal comming out either end
-Q = heat_row_region * ig.numU * ig.Nrows;
-internalHeatSource(model, heat_row_region/(ig.cell_diameter*ig.cell_length), 'face', cellFaces); %heat input is apparently in W/m2 but i am unsure about this and it is applied equally to each region
-% --- OR ---
-% (B) Time-dependent example: step from 0 to heatflux_cell at t = 60 s
-% hf = @(region,state) (state.time >= 60) * heatflux_cell;
-% thermalBC(model, 'edge', heaterEdges, 'HeatFlux', hf);
+    % appply heatflux on edges
+    heat_row_region = heat_cell * ig.n_cell_module / ig.Nrows; % half heatflux as assumed equal comming out either end
+    Q = heat_row_region * ig.numU * ig.Nrows;
+    internalHeatSource(model, heat_row_region/(ig.cell_diameter*ig.cell_length), 'face', cellFaces); %heat input is apparently in W/m2 but i am unsure about this and it is applied equally to each region
 
+else
+    % Create boundary condition functions using interpolation
+    Qrow_fun  = @(region, t) interp1(t, heat_cell, t, 'linear', 'extrap');
+    htc_fun = @(region, state) interp1(t, htc, t, 'linear', 'extrap');
+    
+    % Apply BCs
+    internalHeatSource(model, Qrow_fun, 'face', cellFaces);
+    thermalBC(model, 'edge', freeEdges, ...
+        'ConvectionCoefficient', htc_fun, ...
+        'AmbientTemperature', T_init);
+end
 %% 6) Mesh
 generateMesh(model,"Hmax",0.5e-3);
 

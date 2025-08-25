@@ -1,5 +1,8 @@
 function [T_animations, model] = thermal_model_2D_transient_profile(T_init,t,heat_cell,car_velocity,t_animation)
-    %% 1) Make the model transient (instead of 'steadystate')
+   %%% DEPRECATED
+
+%{
+%% 1) Make the model transient (instead of 'steadystate')
     model = createpde('thermal','transient');
     
     [dl,bt,sf,ig,names] = define_geometry();
