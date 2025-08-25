@@ -45,18 +45,6 @@ freeEdges = nearestEdge(model.Geometry, cooledEdgesCoords);
 
 
 % ============ Cell faces ============
-yc_centers = (1:ig.Nrows) .* (ig.module_h / (ig.Nrows + 1));
-
-cellCenters = []; 
-for ui = 1:ig.numU
-    xc = ig.x_centers(ui);
-    for r = 1:ig.Nrows
-        yc = yc_centers(r);
-        % midpoint of cell region (not heater strip)
-        cellCenters(end+1,:) = [xc, yc];
-    end
-end
-
-cellFaces = nearestFace(model.Geometry, cellCenters);
+cellFaces = nearestFace(model.Geometry, ig.cell_centroid);
 
 end

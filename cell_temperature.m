@@ -3,6 +3,6 @@ function cell_temperature = cell_temperature(params,state)
     
     Q_cell = cell_losses(params,state); % cell losses (W)
     Q_cell_cooling = (state.cell_temperature - params.ambient_temperature) / params.battery.cellRth; % cell cooling (W)
-    cell_temperature = state.cell_temperature + (Q_cell - Q_cell_cooling)/cell_thermal_mass;
+    cell_temperature = state.cell_temperature + state.t * (Q_cell - Q_cell_cooling)/cell_thermal_mass;
 
 end

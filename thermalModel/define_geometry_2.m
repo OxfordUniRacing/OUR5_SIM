@@ -1,4 +1,4 @@
-function [dl,bt,sf,ig,names] = define_geometry_2()
+function [dl,bt,sf,ig,names] = define_geometry_2(fins)
 
 % --- Geometry parameters in a struct ---
 ig.numU          = 5;               % number of U-shaped sheets
@@ -29,12 +29,15 @@ ig.pitch         = 2*(ig.a + ig.busbar_thk) + 5e-3;  % adjust gap between Us her
 
 
 % fin parameters (assuming using ATS-EXL78-1220-R0 cut down into sections across base, https://www.qats.com/Product/Heat-Sinks/Extrusion-Profiles-lengths-/Profiles/ATS-EXL78-1220-R0/3664.aspx)
-
-ig.Nfins         = 0;% floor(24/146e-3 * 400e-3);% number of fins (heatsink has 24 fins per 146mm width, cut down to fit over approximate base width)
-ig.fin_thk       = 0.5e-3;             % thickness [m] (approxiamate)
+if fins
+    ig.Nfins         = floor(24/146e-3 * 400e-3);% number of fins (heatsink has 24 fins per 146mm width, cut down to fit over approximate base width)
+else 
+    ig.Nfins=0;
+end
+    ig.fin_thk       = 0.5e-3;             % thickness [m] (approxiamate)
 ig.fin_h         = 4.6e-3;             % height [m]
 if ig.Nfins>0
-     ig.bottom_thk = ig.bottom_thk + 3.8e-3; % plus 3.8mm for heatsink base
+     ig.base_thk = ig.base_thk + 3.8e-3; % plus 3.8mm for heatsink base
 end
 
 % --- Compute U centers along x ---

@@ -13,7 +13,7 @@ addpath("./thermalModel")
 params.M = 320; %kg
 params.M_dist = 0.5; %distribution mass over front wheels
 params.gratio = 4.0; %gear reduction ratio
-params.lat_mu = 1.4; %lateral tyre coeff. friction
+params.lat_mu = 1.2; %lateral tyre coeff. friction
 params.long_mu = 1.4; %longitudinal tyre coeff. friction
 params.tyre_dia = 16; %tyre diameter, inches
 params.COG_h = 0.3; %m
@@ -36,7 +36,7 @@ params.cellV = 4.2;
 params.battery.Ns = 90;
 params.battery.cell_specific_heat = 830; % 830 typical for a NCA cell, 1040 would be typical for NMC
 params.battery.cell_mass = 70e-3; % from molicell datasheet, 70g
-params.battery.cellRth = 7.6;
+params.battery.cellRth = 61;
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
 params.efficiency.mechanical = 0.92;
@@ -46,7 +46,7 @@ params.control.driver_skill = 1.0; %Driver skill factor (~0.5 to 1), acts as der
 params.control.driver_smoothness_alpha = 0.95; % smoothing factor, 0 = slow change, 1 = instant change
 params.control.max_power = 80e3;
 params.control.regen = true; % toggle regen on or off
-params.control.temp_derate = false;
+params.control.temp_derate = true;
 
 %ENVIRONMENT
 g = 9.81;
@@ -279,6 +279,7 @@ for lapN = 1:Num_Laps
     end
     if(state.SoC < 0.1) 
         fprintf("Battery Empty!")
+        Num_Laps = lapN;
         break;
     end
 end
@@ -286,9 +287,10 @@ end
 %% DATA ANALYSIS
 v_data = vertcat(storage.v);
 t_lap = sum(vertcat(storage.t)) / Num_Laps
-E_endurance = sum(vertcat(storage.E));
-E_lap = E_endurance / Num_Laps;
-E_endurance_KWh = E_endurance / (3.6 * 10^6)
+E = sum(vertcat(storage.E));
+E_lap = E / Num_Laps;
+E_KWh = E / (3.6 * 10^6);
+E_endurance_KWh = E_KWh / Num_Laps * num_laps_endurance
 
 t_data = cumsum(vertcat(storage.t));
 
@@ -352,4 +354,4 @@ xlabel("Time (s)")
 
 
 %% thermal simulation
-run("thermal_simultation.m");
+% run("thermal_simultation.m");

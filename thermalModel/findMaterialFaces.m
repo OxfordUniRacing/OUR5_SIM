@@ -23,5 +23,9 @@ function [al_faces, ct_faces, cell_faces, cu_faces] = findMaterialFaces(model, i
     end
 
     % copper faces
-    cu_faces = nearestFace(model.Geometry, ig.cu_centroid);
+    if isfield(ig,'cu_centroid')
+        cu_faces = nearestFace(model.Geometry, ig.cu_centroid);
+    else
+        cu_faces = [];
+    end
 end
