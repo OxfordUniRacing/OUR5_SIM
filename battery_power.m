@@ -1,4 +1,4 @@
-function battery_power = battery_power(motor_power,params,state)
+function [battery_power, battery_current] = battery_power(motor_power,params,state)
     % If there is a certain power request
     % Assume pack voltage of 90*3.6V = 324V
     % cells have internal resistance of 0.013 ohms
@@ -17,17 +17,13 @@ function battery_power = battery_power(motor_power,params,state)
     if isnan(c)
         keyboard();
     end
-
-
+    
     current = roots([a b c]);
 
-    min_current = -params.max_charge_Crate * params.pack_Ah * 1.5; % with margin to make sim run
-    max_current = params.max_discharge_Crate * params.pack_Ah * 1.5; % with margin to make sim run
-    
     ideal_current = motor_power/b;
     [~,mask] = min(abs(current - ideal_current));
     battery_power = current(mask) * (state.battery_voltage + a*current(mask));
-
+    battery_current = current(mask);
     clear isreal
     if(~isreal(battery_power))
        keyboard(); 

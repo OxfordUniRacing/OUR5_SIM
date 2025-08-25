@@ -36,7 +36,7 @@ params.cellV = 4.2;
 params.battery.Ns = 90;
 params.battery.cell_specific_heat = 830; % 830 typical for a NCA cell, 1040 would be typical for NMC
 params.battery.cell_mass = 70e-3; % from molicell datasheet, 70g
-params.battery.cellRth = 10;
+params.battery.cellRth = 7.6;
 %EFFICIENCIES
 %Motor efficiency is in seperate "motor_efficiecy.m"
 params.efficiency.mechanical = 0.92;
@@ -249,7 +249,7 @@ for lapN = 1:Num_Laps
             state.P_motor_drive = state.T_motor * state.RPM_motor * pi / 30; % compute mechanical motor power
             Eff_motor =  motor_efficiency(state.RPM_motor,state.T_motor); % calculate motor efficiency with regen torque
             state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute electrical motor power
-            state.P_battery = battery_power(state.P_motor_draw,params,state); % get maximum battery power TODO include inverter efficiency 
+            [state.P_battery, state.I_battery] = battery_power(state.P_motor_draw,params,state); % get maximum battery power TODO include inverter efficiency 
             state.I_battery = state.P_battery / pack_voltage(params,state); % compute battery current TODO make pack voltage a funciton of SoC and cell resistance
             state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
         
@@ -263,7 +263,7 @@ for lapN = 1:Num_Laps
             state.Eff_motor = Eff_motor; % efficiency of trial drive power is the motor efficincy
             state.P_motor_drive = state.T_motor * state.RPM_motor * pi / 30; % compute motor mechanical power
             state.P_motor_draw = state.P_motor_drive / Eff_motor; % compute motor electrical power 
-            state.P_battery = battery_power(state.P_motor_draw, params, state); % get battery power TODO include inverter efficiency 
+            [state.P_battery,state.I_battery] = battery_power(state.P_motor_draw, params, state); % get battery power TODO include inverter efficiency 
             state.I_battery = state.P_battery / pack_voltage(params,state); % compute battery current TODO make pack voltage a funciton cell resistance
             state.E = state.P_battery * state.t; % compute pack energy consumed during track segment
             
@@ -285,7 +285,7 @@ for lapN = 1:Num_Laps
     end
 end
 
-%DATA ANALYSIS
+%% DATA ANALYSIS
 v_data = vertcat(storage.v);
 t_lap = sum(vertcat(storage.t)) / Num_Laps
 E_endurance = sum(vertcat(storage.E));

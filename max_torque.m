@@ -17,7 +17,7 @@ function max_torque = max_torque(rpm,params,state)
 
 
     %Check bsaed on battery SOC with max current
-    max_current = 300;
+    max_current = params.battery.Np * params.cell_Ah * params.max_discharge_Crate;
     max_battery_power = (state.battery_voltage - max_current * params.battery.Ns*params.cellR/params.battery.Np) * max_current;
 
 
