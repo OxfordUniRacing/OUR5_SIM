@@ -1,7 +1,7 @@
 function params = params()
 
     params.M = 320; %kg
-    params.M_dist = 0.40; %distribution mass over front wheels
+    params.M_dist = 0.50; %distribution mass over front wheels
     params.gratio = 4.0; %gear reduction ratio
 
     params.COG_h = 0.3; %m

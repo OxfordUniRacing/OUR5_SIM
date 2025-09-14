@@ -17,7 +17,7 @@ params = params();
 
 
 %INITIALISATION
-state.v = 5;
+state.v = 0;
 state.Fz = params.M*params.g;
 state.Fz_drive = params.M*params.g*(1-params.M_dist);
 state.F = 0;
@@ -37,8 +37,8 @@ state.cell_temperature = params.ambient_temperature;
 
 %SIM
 
-storage = endurance_model(params,state);
-%storage = acceleration(params,state);
+%storage = endurance_model(params,state);
+storage = acceleration(params,state);
 
 %% thermal simulation
 % run("thermal_simultation.m");
