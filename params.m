@@ -38,9 +38,9 @@ function params = params()
     %CONTROL
     params.control.driver_skill = 1.0; %Driver skill factor (~0.5 to 1), acts as derate
     params.control.driver_smoothness_alpha = 0.95; % smoothing factor, 0 = slow change, 1 = instant change
-    params.control.max_power = 80e3;
+    params.control.max_power = 60e3;
     params.control.regen = true; % toggle regen on or off
-    params.control.temp_derate = true;
+    params.control.temp_derate = false;
     
     %ENVIRONMENT
     
