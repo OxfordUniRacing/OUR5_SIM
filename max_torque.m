@@ -96,7 +96,6 @@ function max_torque = max_torque(rpm,params,state)
                 pwr_est = rpm * torque_mid * pi/30 / eff;
                 %bat_pwr = battery_power(pwr_est,params,state);
                 
-                
                 if pwr_est > power_limit
                     torque_max = torque_mid;
                 elseif pwr_est < power_limit - pwr_tol

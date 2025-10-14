@@ -18,6 +18,8 @@ function storage = acceleration_model(params,state)
         F_rr = params.M * params.g * params.Crr;
 
         F_vehicle = F_drive - F_aero - F_rr;
+        state.F_areo = F_aero;
+        state.F_rr = F_rr;
         
         %Update velocity
         state.v = state.v + time_step * F_vehicle / params.M;

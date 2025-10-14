@@ -147,6 +147,10 @@ function storage = endurance_model(params,state)
                 
             end
     
+            % calculate motor + inverter losses in terms of watts
+            state.motor_losses = motor_loss(state.T_motor,state.RPM_motor);
+            state.inverter_losses = inverter_loss(state.T_motor,state.RPM_motor);
+
             % battery model
             state.SoC = update_SoC(params,state);
             state.battery_voltage = pack_voltage(params,state); 
@@ -164,10 +168,18 @@ function storage = endurance_model(params,state)
         end
     end
 
+    t = vertcat(storage.t);
+    motor_losses = vertcat(storage.motor_losses);
+    inverter_losses = vertcat(storage.inverter_losses);
 
+    t_total = sum(t);
+
+    %Calculate Average Watts for losses from inverter and motor
+    motor_loss_avg = nansum(motor_losses .* t) / t_total
+    inv_loss_avg = nansum(inverter_losses .* t) / t_total
 
     v_data = vertcat(storage.v);
-    t_lap = sum(vertcat(storage.t)) / params.Num_Laps
+    t_lap = t_total / params.Num_Laps
     E = sum(vertcat(storage.E));
     E_lap = E / params.Num_Laps;
     E_KWh = E / (3.6 * 10^6);
